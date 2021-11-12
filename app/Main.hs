@@ -4,7 +4,8 @@ import Control.Monad.Loops (whileM_)
 import Control.Monad.State (evalStateT, get, liftIO, modify)
 import Data.Char (chr, ord)
 import Data.Functor ((<&>))
-import Data.Vector.Mutable qualified as V
+import Data.Vector.Primitive.Mutable qualified as V
+import Data.Word (Word8)
 import System.IO (hPutStrLn, stderr)
 import System.Environment (getArgs)
 import Text.Read (readMaybe)
@@ -30,7 +31,7 @@ main = do
 
 runBrainfuck :: [Brainfuck] -> Int -> IO ()
 runBrainfuck prog memSize = do
-  memory <- V.replicate memSize (0 :: Int)
+  memory <- V.replicate memSize (0 :: Word8)
   let run = \case
         [] -> pure ()
         ShiftL : prog' -> do
@@ -47,11 +48,11 @@ runBrainfuck prog memSize = do
           run prog'
         Output : prog' -> do
           x <- get >>= V.read memory
-          liftIO . putChar . chr $ x
+          liftIO . putChar . chr . fromIntegral $ x
           run prog'
         Input : prog' -> do
           c <- liftIO getChar
-          get >>= flip (V.write memory) (ord c)
+          get >>= flip (V.write memory) (fromIntegral $ ord c)
           run prog'
         Loop inner : prog' -> do
           whileM_ (get >>= V.read memory <&> (/= 0)) $ run inner
