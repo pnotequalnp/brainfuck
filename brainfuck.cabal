@@ -1,0 +1,26 @@
+cabal-version: 2.4
+name:          brainfuck
+version:       0.1.0.0
+license:       ISC
+license-file:  LICENSE
+author:        Kevin Mullins
+maintainer:    kevin@pnotequalnp.com
+copyright:     Kevin Mullins 2021
+
+executable brainfuck
+  hs-source-dirs:     app
+  main-is:            Main.hs
+  default-language:   Haskell2010
+  ghc-options:        -Wall
+  default-extensions:
+    FlexibleContexts
+    ImportQualifiedPost
+    LambdaCase
+    NumericUnderscores
+    ViewPatterns
+
+  build-depends:
+    , base         ^>=4.14.1.0
+    , monad-loops
+    , mtl
+    , vector
