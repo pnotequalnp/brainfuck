@@ -3,11 +3,12 @@ module Main where
 import Control.Monad.Loops (whileM_)
 import Control.Monad.State (evalStateT, get, liftIO, modify)
 import Data.Char (chr, ord)
+import Data.Foldable (traverse_)
 import Data.Functor ((<&>))
 import Data.Vector.Primitive.Mutable qualified as V
 import Data.Word (Word8)
-import System.IO (hPutStrLn, stderr)
 import System.Environment (getArgs)
+import System.IO (hPutStrLn, stderr)
 import Text.Read (readMaybe)
 
 data Brainfuck
@@ -18,13 +19,14 @@ data Brainfuck
   | Output
   | Input
   | Loop [Brainfuck]
-  deriving Show
+  deriving (Show)
 
 main :: IO ()
 main = do
-  memory <- getArgs >>= \case
-    "-m" : (readMaybe -> Just x) : _ -> pure x
-    _ -> pure 30_000
+  memory <-
+    getArgs >>= \case
+      "-m" : (readMaybe -> Just x) : _ -> pure x
+      _ -> pure 30_000
   getContents <&> parseBrainfuck >>= \case
     Nothing -> hPutStrLn stderr "Invalid syntax"
     Just prog -> runBrainfuck prog memory
@@ -33,32 +35,20 @@ runBrainfuck :: [Brainfuck] -> Int -> IO ()
 runBrainfuck prog memSize = do
   memory <- V.replicate memSize (0 :: Word8)
   let run = \case
-        [] -> pure ()
-        ShiftL : prog' -> do
-          modify (subtract 1)
-          run prog'
-        ShiftR : prog' -> do
-          modify (+ 1)
-          run prog'
-        Inc : prog' -> do
-          get >>= V.modify memory (+ 1)
-          run prog'
-        Dec : prog' -> do
-          get >>= V.modify memory (subtract 1)
-          run prog'
-        Output : prog' -> do
+        ShiftL -> modify (subtract 1)
+        ShiftR -> modify (+ 1)
+        Inc -> get >>= V.modify memory (+ 1)
+        Dec -> get >>= V.modify memory (subtract 1)
+        Output -> do
           x <- get >>= V.read memory
           liftIO . putChar . chr . fromIntegral $ x
-          run prog'
-        Input : prog' -> do
+        Input -> do
           c <- liftIO getChar
           get >>= flip (V.write memory) (fromIntegral $ ord c)
-          run prog'
-        Loop inner : prog' -> do
-          whileM_ (get >>= V.read memory <&> (/= 0)) $ run inner
-          run prog'
+        Loop inner ->
+          whileM_ (get >>= V.read memory <&> (/= 0)) $ traverse_ run inner
 
-  (`evalStateT` (0 :: Int)) $ run prog
+  (`evalStateT` (0 :: Int)) $ traverse_ run prog
 
 parseBrainfuck :: String -> Maybe [Brainfuck]
 parseBrainfuck = open
