@@ -1,79 +1,66 @@
-module Main where
+module Main (main) where
 
-import Control.Monad.Loops (whileM_)
-import Control.Monad.State (evalStateT, get, liftIO, modify)
-import Data.Char (chr, ord)
-import Data.Foldable (traverse_)
-import Data.Functor ((<&>))
-import Data.Vector.Primitive.Mutable qualified as V
-import Data.Word (Word8)
-import System.Environment (getArgs)
+import Control.Applicative (asum, optional)
+import Data.Foldable (fold)
+import Data.Version (showVersion)
+import Language.Brainfuck qualified as BF
+import Options.Applicative (Parser, ParserInfo)
+import Options.Applicative qualified as Opts
+import Paths_brainfuck (version)
+import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
-import Text.Read (readMaybe)
 
-data Brainfuck
-  = ShiftL
-  | ShiftR
-  | Inc
-  | Dec
-  | Output
-  | Input
-  | Loop [Brainfuck]
-  deriving (Show)
+data Mode
+  = Interpret
+  | Version
+
+data Options = Options
+  { mode :: Mode,
+    filePath :: Maybe FilePath,
+    memory :: Word
+  }
 
 main :: IO ()
 main = do
-  memory <-
-    getArgs >>= \case
-      "-m" : (readMaybe -> Just x) : _ -> pure x
-      _ -> pure 30_000
-  getContents <&> parseBrainfuck >>= \case
-    Nothing -> hPutStrLn stderr "Invalid syntax"
-    Just prog -> runBrainfuck prog memory
+  Options {mode, filePath, memory} <- Opts.execParser parser
+  program <- BF.parse <$> maybe getContents readFile filePath
+  case mode of
+    Version -> putStrLn (showVersion version)
+    Interpret -> case program of
+      Nothing -> hPutStrLn stderr "Invalid syntax" *> exitFailure
+      Just program' -> BF.interpret memory program'
 
-runBrainfuck :: [Brainfuck] -> Int -> IO ()
-runBrainfuck prog memSize = do
-  memory <- V.replicate memSize (0 :: Word8)
-  let run = \case
-        ShiftL -> modify (subtract 1)
-        ShiftR -> modify (+ 1)
-        Inc -> get >>= V.modify memory (+ 1)
-        Dec -> get >>= V.modify memory (subtract 1)
-        Output -> do
-          x <- get >>= V.read memory
-          liftIO . putChar . chr . fromIntegral $ x
-        Input -> do
-          c <- liftIO getChar
-          get >>= flip (V.write memory) (fromIntegral $ ord c)
-        Loop inner ->
-          whileM_ (get >>= V.read memory <&> (/= 0)) $ traverse_ run inner
+parser :: ParserInfo Options
+parser =
+  Opts.info (Opts.helper <*> parseOptions) $
+    fold
+      [ Opts.fullDesc,
+        Opts.header ("Brainfuck " <> showVersion version),
+        Opts.footer "https://github.com/pnotequalnp/brainfuck"
+      ]
 
-  (`evalStateT` (0 :: Int)) $ traverse_ run prog
+parseOptions :: Parser Options
+parseOptions = Options <$> parseMode <*> optional parseFilePath <*> parseMemory
 
-parseBrainfuck :: String -> Maybe [Brainfuck]
-parseBrainfuck = open
-  where
-    open = \case
-      [] -> Just []
-      '[' : s -> case close s of
-        Nothing -> Nothing
-        Just (s', Loop -> inner) -> (inner :) <$> open s'
-      (instr -> Just x) : s -> (x :) <$> open s
-      _ -> Nothing
+parseFilePath :: Parser FilePath
+parseFilePath = Opts.strArgument (Opts.metavar "FILEPATH")
 
-    close = \case
-      ']' : s -> Just (s, [])
-      (instr -> Just x) : s -> fmap (x :) <$> close s
-      '[' : s -> case close s of
-        Nothing -> Nothing
-        Just (s', Loop -> inner) -> fmap (inner :) <$> close s'
-      _ -> Nothing
+parseMode :: Parser Mode
+parseMode =
+  asum
+    [ Opts.flag' Version (Opts.long "version" <> Opts.short 'v' <> Opts.help "Print Brainfuck version"),
+      Opts.flag' Interpret (Opts.long "exec" <> Opts.short 'x' <> Opts.help "Interpret a Brainfuck program"),
+      pure Interpret
+    ]
 
-    instr = \case
-      '<' -> Just ShiftL
-      '>' -> Just ShiftR
-      '+' -> Just Inc
-      '-' -> Just Dec
-      '.' -> Just Output
-      ',' -> Just Input
-      _ -> Nothing
+parseMemory :: Parser Word
+parseMemory =
+  Opts.option Opts.auto $
+    fold
+      [ Opts.long "memory",
+        Opts.short 'v',
+        Opts.metavar "BYTES",
+        Opts.help "Memory size in bytes",
+        Opts.value 30_000,
+        Opts.showDefault
+      ]
