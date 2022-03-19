@@ -58,7 +58,7 @@ parseMemory =
   Opts.option Opts.auto $
     fold
       [ Opts.long "memory",
-        Opts.short 'v',
+        Opts.short 'm',
         Opts.metavar "BYTES",
         Opts.help "Memory size in bytes",
         Opts.value 30_000,
