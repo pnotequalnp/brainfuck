@@ -30,9 +30,6 @@ jobs:
     - name: Build and run tests
       run: nix build
 
-    - name: Validate flake format
-      run: nix flake check
-
     - name: Update store cache
       run: |
         sudo rm -rf store-cache
