@@ -8,7 +8,12 @@
     flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        hs = pkgs.haskell.packages.ghc921;
+        hs = pkgs.haskell.packages.ghc921.override {
+          overrides = self: super: {
+            # Bytestring is currently at 0.11 and the llvm-hs family still wants 0.10
+            llvm-hs-pure = pkgs.haskell.lib.doJailbreak super.llvm-hs-pure;
+          };
+        };
       in
       rec {
         packages.brainfuck = hs.callCabal2nix "brainfuck" ./. { };

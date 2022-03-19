@@ -1,6 +1,7 @@
 module Main (main) where
 
 import Control.Applicative (asum, optional)
+import Data.ByteString qualified as BS
 import Data.Foldable (fold)
 import Data.Version (showVersion)
 import Language.Brainfuck qualified as BF
@@ -12,23 +13,40 @@ import System.IO (hPutStrLn, stderr)
 
 data Mode
   = Interpret
+  | Compile Stage Backend
   | Version
 
+data Backend
+  = LLVM
+
+data Stage
+  = Binary
+  | IR
+
 data Options = Options
-  { mode :: Mode,
-    filePath :: Maybe FilePath,
-    memory :: Word
+  { filePath :: Maybe FilePath,
+    memory :: Word,
+    outputFile :: Maybe FilePath,
+    mode :: Mode
   }
 
 main :: IO ()
 main = do
-  Options {mode, filePath, memory} <- Opts.execParser parser
-  program <- BF.parse <$> maybe getContents readFile filePath
+  Options {mode, filePath, outputFile, memory} <- Opts.execParser parser
+  parsed <- BF.parse <$> maybe getContents readFile filePath
+  let output = maybe BS.putStr BS.writeFile outputFile
+      getProgram = maybe (hPutStrLn stderr "Invalid syntax" *> exitFailure) pure parsed
   case mode of
     Version -> putStrLn (showVersion version)
-    Interpret -> case program of
-      Nothing -> hPutStrLn stderr "Invalid syntax" *> exitFailure
-      Just program' -> BF.interpret memory program'
+    Interpret -> getProgram >>= BF.interpret memory
+    Compile stage backend -> do
+      program <- getProgram
+      case backend of
+        LLVM -> output =<< case stage of
+          IR -> BF.renderLLVM llvm
+          Binary -> BF.compileLLVM llvm
+          where
+            llvm = BF.genLLVM program
 
 parser :: ParserInfo Options
 parser =
@@ -40,7 +58,7 @@ parser =
       ]
 
 parseOptions :: Parser Options
-parseOptions = Options <$> parseMode <*> optional parseFilePath <*> parseMemory
+parseOptions = Options <$> optional parseFilePath <*> parseMemory <*> optional parseFilePath <*> parseMode
 
 parseFilePath :: Parser FilePath
 parseFilePath = Opts.strArgument (Opts.metavar "FILEPATH")
@@ -50,8 +68,12 @@ parseMode =
   asum
     [ Opts.flag' Version (Opts.long "version" <> Opts.short 'v' <> Opts.help "Print Brainfuck version"),
       Opts.flag' Interpret (Opts.long "exec" <> Opts.short 'x' <> Opts.help "Interpret a Brainfuck program"),
-      pure Interpret
+      compileFlag <*> parseStage <*> parseBackend,
+      pure (Compile Binary LLVM)
     ]
+
+compileFlag :: Parser (Stage -> Backend -> Mode)
+compileFlag = Opts.flag' Compile (Opts.long "build" <> Opts.short 'c' <> Opts.help "Compile a Brainfuck program")
 
 parseMemory :: Parser Word
 parseMemory =
@@ -64,3 +86,13 @@ parseMemory =
         Opts.value 30_000,
         Opts.showDefault
       ]
+
+parseStage :: Parser Stage
+parseStage = Opts.flag Binary IR (Opts.long "ir" <> Opts.help "Dump intermediate representation")
+
+parseBackend :: Parser Backend
+parseBackend =
+  asum
+    [ Opts.flag' LLVM (Opts.long "llvm" <> Opts.help "Compile via LLVM"),
+      pure LLVM
+    ]

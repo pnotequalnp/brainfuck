@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          brainfuck
-version:       0.2.0.1
+version:       0.3.0.0
 category:      Language
 license:       ISC
 license-file:  LICENSE
@@ -25,12 +25,14 @@ common base
 
   build-depends:
     , base ^>=4.16.0.0
+    , bytestring
 
 library
   import:          base
   hs-source-dirs:  src
   exposed-modules:
     Language.Brainfuck
+    Language.Brainfuck.Codegen.LLVM
     Language.Brainfuck.Interpreter
     Language.Brainfuck.Parser
     Language.Brainfuck.Syntax
@@ -39,6 +41,7 @@ library
     Language.Brainfuck.Interpreter.Internal
 
   build-depends:
+    , llvm-hs-pure
     , monad-loops
     , mtl
     , vector
