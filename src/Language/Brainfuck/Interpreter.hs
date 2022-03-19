@@ -2,12 +2,12 @@ module Language.Brainfuck.Interpreter where
 
 import Control.Monad.Loops (whileM_)
 import Control.Monad.State (StateT, evalStateT, get, liftIO, modify)
-import Data.Char (chr, ord)
 import Data.Foldable (traverse_)
 import Data.Functor ((<&>))
 import Data.Vector.Unboxed.Mutable (IOVector)
 import Data.Vector.Unboxed.Mutable qualified as V
 import Data.Word (Word8)
+import Language.Brainfuck.Interpreter.Internal (getByte, putByte)
 import Language.Brainfuck.Syntax (Program, Statement (..))
 
 type Byte = Word8
@@ -32,9 +32,3 @@ executeStatement memory = \case
   Loop statements ->
     whileM_ (get >>= V.read memory <&> (/= 0)) $
       traverse_ (executeStatement memory) statements
-
-getByte :: IO Byte
-getByte = fromIntegral . ord <$> getChar
-
-putByte :: Byte -> IO ()
-putByte = putChar . chr . fromIntegral
