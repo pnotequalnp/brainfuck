@@ -12,7 +12,7 @@ copyright:     Kevin Mullins 2022
 
 common base
   default-language:   GHC2021
-  ghc-options:        -Wall
+  ghc-options:        -Wall -Wcompat -Werror=incomplete-patterns -fno-show-valid-hole-fits
   default-extensions:
     BlockArguments
     DerivingVia
@@ -21,11 +21,12 @@ common base
     LexicalNegation
     NoFieldSelectors
     OverloadedRecordDot
-    ViewPatterns
+    PatternSynonyms
 
   build-depends:
     , base ^>=4.16.0.0
     , bytestring
+    , text
 
 library
   import:          base
@@ -41,9 +42,12 @@ library
     Language.Brainfuck.Interpreter.Internal
 
   build-depends:
+    , data-fix
     , llvm-hs-pure
+    , llvm-hs-pretty
     , monad-loops
     , mtl
+    , recursion-schemes
     , vector
 
 executable brainfuck

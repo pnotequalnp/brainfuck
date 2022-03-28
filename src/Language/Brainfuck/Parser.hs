@@ -4,7 +4,7 @@ import Control.Applicative (asum, many)
 import Control.Monad.State (StateT (..), evalStateT)
 import Data.Functor (($>))
 import Data.Maybe (mapMaybe)
-import Language.Brainfuck.Syntax (Statement (..), Program, Token (..))
+import Language.Brainfuck.Syntax
 import Prelude hiding (lex)
 
 lex :: String -> [Token]
