@@ -10,47 +10,52 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, llvm-hs, llvm-hs-pretty }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
-      let
-        overlay = self: super: {
-          haskell = super.haskell // {
-            packageOverrides = hsSelf: hsSuper: {
-              brainfuck = hsSelf.callCabal2nix "brainfuck" ./. { };
-              llvm-hs-pretty = self.haskell.lib.dontCheck (hsSelf.callCabal2nix "llvm-hs-pretty" llvm-hs-pretty { });
-              llvm-hs-pure = hsSelf.callCabal2nix "llvm-hs-pure" "${llvm-hs}/llvm-hs-pure" { };
-            };
+    let
+      overlay = final: prev: {
+        haskell = prev.haskell // {
+          packageOverrides = hsFinal: hsPrev: {
+            brainfuck = hsFinal.callCabal2nix "brainfuck" ./. { };
           };
         };
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ overlay ];
-        };
-        hs = pkgs.haskell.packages.ghc921;
-      in rec {
-        inherit overlay;
+      };
+    in
+    flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ]
+      (system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ overlay ];
+          };
+          inherit (pkgs.lib) composeExtensions;
+          lib = pkgs.haskell.lib;
+          hs = pkgs.haskell.packages.ghc921.override {
+            overrides = composeExtensions pkgs.haskell.packageOverrides (final: prev: {
+              llvm-hs-pretty = lib.dontCheck (final.callCabal2nix "llvm-hs-pretty" llvm-hs-pretty { });
+              llvm-hs-pure = final.callCabal2nix "llvm-hs-pure" "${llvm-hs}/llvm-hs-pure" { };
+            });
+          };
+        in
+        rec {
+          packages = rec {
+            brainfuck = hs.brainfuck;
+            default = brainfuck;
+          };
 
-        packages = rec {
-          brainfuck = hs.brainfuck;
-          default = brainfuck;
-        };
+          apps = rec {
+            brainfuck = flake-utils.lib.mkApp { drv = packages.brainfuck; };
+            default = brainfuck;
+          };
 
-        apps = rec {
-          brainfuck = flake-utils.lib.mkApp { drv = packages.brainfuck; };
-          default = brainfuck;
-        };
-
-        # Compatibility for older Nix versions
-        defaultApp = apps.default;
-        defaultPackage = packages.default;
-
-        devShell = hs.shellFor {
-          packages = hsPkgs: with hsPkgs; [ brainfuck ];
-          nativeBuildInputs = with hs; [
-            cabal-install
-            fourmolu
-            haskell-language-server
-            hlint
-          ];
-        };
-      });
+          devShells.default = hs.shellFor {
+            packages = hsPkgs: with hsPkgs; [ brainfuck ];
+            nativeBuildInputs = with hs; [
+              cabal-install
+              fourmolu
+              haskell-language-server
+              hlint
+            ];
+          };
+        }) // {
+      overlays.default = overlay;
+    };
 }

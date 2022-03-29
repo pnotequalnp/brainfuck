@@ -13,17 +13,19 @@ import Language.Brainfuck.Syntax
 genLLVM :: Program -> Module
 genLLVM program =
   defaultModule
-    { moduleDefinitions = defs
+    { moduleDefinitions = defs,
+      moduleName = "brainfuck"
     }
   where
     defs = execModuleBuilder emptyModuleBuilder do
-      getbyte <- extern (mkName "getbyte") [] (IntegerType 32)
-      putbyte <- extern (mkName "putbyte") [IntegerType 32] (IntegerType 32)
+      getbyte <- extern (mkName "getchar") [] (IntegerType 32)
+      putbyte <- extern (mkName "putchar") [IntegerType 32] (IntegerType 32)
       _ <- function (mkName "main") [] (IntegerType 32) \_ -> do
         _ <- block
         buffer <- alloca (ArrayType 30_000 (IntegerType 8)) Nothing 8
         let ctx = Context {buffer, putbyte, getbyte}
         (`runReaderT` ctx) . (`evalStateT` (int64 0)) $ traverse_ buildIR program
+        ret (int32 0)
       pure ()
 
 data Context = Context
@@ -47,20 +49,23 @@ buildIR = \case
     put ptr'
   Inc -> do
     buffer <- asks (.buffer)
-    loc <- gep buffer ([])
+    ptr <- get
+    loc <- gep buffer ([int64 0, ptr])
     x <- load loc 8
     x' <- add x (int8 1)
     store loc 8 x'
   Dec -> do
     buffer <- asks (.buffer)
-    loc <- gep buffer ([])
+    ptr <- get
+    loc <- gep buffer ([int64 0, ptr])
     x <- load loc 8
     x' <- sub x (int8 1)
     store loc 8 x'
   Output -> do
     putbyte <- asks (.putbyte)
     buffer <- asks (.buffer)
-    loc <- gep buffer ([])
+    ptr <- get
+    loc <- gep buffer ([int64 0, ptr])
     x8 <- load loc 8
     x32 <- sext x8 (IntegerType 32)
     _ <- call putbyte [(x32, [])]
@@ -68,7 +73,8 @@ buildIR = \case
   Input -> do
     getbyte <- asks (.getbyte)
     buffer <- asks (.buffer)
-    loc <- gep buffer ([])
+    ptr <- get
+    loc <- gep buffer ([int64 0, ptr])
     x32 <- call getbyte []
     x8 <- trunc x32 (IntegerType 8)
     store loc 8 x8
@@ -83,4 +89,4 @@ renderLLVM :: Module -> L.Text
 renderLLVM = ppllvm
 
 compileLLVM :: Module -> IO ByteString
-compileLLVM = error "LLVM compilation not implemented"
+compileLLVM = error "LLVM compilation not implemented (use --ir)"

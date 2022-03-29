@@ -21,6 +21,7 @@ common base
     LexicalNegation
     NoFieldSelectors
     OverloadedRecordDot
+    OverloadedStrings
     PatternSynonyms
 
   build-depends:
