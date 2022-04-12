@@ -1,6 +1,8 @@
 cabal-version: 2.4
 name:          brainfuck
 version:       0.3.0.0
+synopsis:      Brainfuck Compiler and Interpreter
+description:   Basic compiler and interpreter for the Brainfuck language using LLVM as a backend.
 category:      Language
 license:       ISC
 license-file:  LICENSE
@@ -9,6 +11,10 @@ bug-reports:   https://github.com/pnotequalnp/brainfuck/issues
 author:        Kevin Mullins
 maintainer:    kevin@pnotequalnp.com
 copyright:     Kevin Mullins 2022
+
+source-repository head
+  type: git
+  location: https://github.com/pnotequalnp/brainfuck
 
 common base
   default-language:   GHC2021
@@ -59,8 +65,11 @@ executable brainfuck
   import:         base
   hs-source-dirs: app
   main-is:        Main.hs
-  ghc-options:    -O2 -threaded
+  ghc-options:    -threaded
   other-modules:
+    Paths_brainfuck
+
+  autogen-modules:
     Paths_brainfuck
 
   build-depends:
