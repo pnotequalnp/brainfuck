@@ -23,6 +23,7 @@ common base
     OverloadedRecordDot
     OverloadedStrings
     PatternSynonyms
+    RecursiveDo
 
   build-depends:
     , base ^>=4.16.0.0

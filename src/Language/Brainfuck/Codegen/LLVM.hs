@@ -1,11 +1,11 @@
 module Language.Brainfuck.Codegen.LLVM where
-
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
 import Data.Text.Lazy qualified as L
 import LLVM.AST (Module (..), Operand, Type (..), defaultModule, mkName)
+import LLVM.AST.IntegerPredicate qualified as LLVM
 import LLVM.IRBuilder
 import LLVM.Pretty (ppllvm)
 import Language.Brainfuck.Syntax
@@ -35,7 +35,7 @@ data Context = Context
   }
 
 buildIR ::
-  (MonadIRBuilder m, MonadModuleBuilder m, MonadReader Context m, MonadState Operand m) =>
+  (MonadIRBuilder m, MonadModuleBuilder m, MonadReader Context m, MonadState Operand m, MonadFix m) =>
   Statement ->
   m ()
 buildIR = \case
@@ -78,12 +78,27 @@ buildIR = \case
     x32 <- call getbyte []
     x8 <- trunc x32 (IntegerType 8)
     store loc 8 x8
-  Loop _statements -> do
-    ptr <- get
+  Loop statements -> mdo
+    buffer <- asks (.buffer)
+    prevPtr <- get
     prev <- currentBlock
-    cur <- block
-    _ <- phi [(ptr, prev), (undefined, cur)]
-    error "loop"
+    br loop
+
+    loop <- block
+    ptr <- phi [(prevPtr, prev), (loopPtr, bodyEnd)]
+    loc <- gep buffer ([int64 0, ptr])
+    x <- load loc 8
+    isZero <- icmp LLVM.EQ (int8 0) x
+    condBr isZero end body
+
+    body <- block
+    traverse_ buildIR statements
+    loopPtr <- get
+    bodyEnd <- currentBlock
+    br loop
+
+    end <- block
+    pure ()
 
 renderLLVM :: Module -> L.Text
 renderLLVM = ppllvm
