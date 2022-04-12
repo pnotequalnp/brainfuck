@@ -21,7 +21,7 @@ data StatementF a
   | OutputF
   | InputF
   | LoopF [a]
-  deriving stock Functor
+  deriving stock (Functor)
 
 type Statement = Fix StatementF
 

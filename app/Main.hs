@@ -26,10 +26,10 @@ data Stage
   | IR
 
 data Options = Options
-  { filePath :: Maybe FilePath,
-    memory :: Word,
-    outputFile :: Maybe FilePath,
-    mode :: Mode
+  { filePath :: Maybe FilePath
+  , memory :: Word
+  , outputFile :: Maybe FilePath
+  , mode :: Mode
   }
 
 main :: IO ()
@@ -56,9 +56,9 @@ parser :: ParserInfo Options
 parser =
   Opts.info (Opts.helper <*> parseOptions) $
     fold
-      [ Opts.fullDesc,
-        Opts.header ("Brainfuck " <> showVersion version),
-        Opts.footer "https://github.com/pnotequalnp/brainfuck"
+      [ Opts.fullDesc
+      , Opts.header ("Brainfuck " <> showVersion version)
+      , Opts.footer "https://github.com/pnotequalnp/brainfuck"
       ]
 
 parseOptions :: Parser Options
@@ -70,34 +70,34 @@ parseFilePath = Opts.strArgument (Opts.metavar "FILEPATH")
 parseMode :: Parser Mode
 parseMode =
   asum
-    [ Opts.flag' Version (Opts.long "version" <> Opts.short 'v' <> Opts.help "Print Brainfuck version"),
-      Opts.flag' Interpret (Opts.long "exec" <> Opts.short 'x' <> Opts.help "Interpret a Brainfuck program"),
-      Compile <$> parseStage <*> parseBackend
+    [ Opts.flag' Version (Opts.long "version" <> Opts.short 'v' <> Opts.help "Print Brainfuck version")
+    , Opts.flag' Interpret (Opts.long "exec" <> Opts.short 'x' <> Opts.help "Interpret a Brainfuck program")
+    , Compile <$> parseStage <*> parseBackend
     ]
 
 parseMemory :: Parser Word
 parseMemory =
   Opts.option Opts.auto $
     fold
-      [ Opts.long "memory",
-        Opts.short 'm',
-        Opts.metavar "BYTES",
-        Opts.help "Memory size in bytes",
-        Opts.value 30_000,
-        Opts.showDefault
+      [ Opts.long "memory"
+      , Opts.short 'm'
+      , Opts.metavar "BYTES"
+      , Opts.help "Memory size in bytes"
+      , Opts.value 30_000
+      , Opts.showDefault
       ]
 
 parseStage :: Parser Stage
 parseStage =
   asum
-    [ Opts.flag' IR (Opts.long "emit-ir" <> Opts.help "Dump intermediate representation"),
-      Opts.flag' Assembly (Opts.long "emit-asm" <> Opts.help "Dump assembly"),
-      pure Binary
+    [ Opts.flag' IR (Opts.long "emit-ir" <> Opts.help "Dump intermediate representation")
+    , Opts.flag' Assembly (Opts.long "emit-asm" <> Opts.help "Dump assembly")
+    , pure Binary
     ]
 
 parseBackend :: Parser Backend
 parseBackend =
   asum
-    [ Opts.flag' LLVM (Opts.long "llvm" <> Opts.help "Compile via LLVM"),
-      pure LLVM
+    [ Opts.flag' LLVM (Opts.long "llvm" <> Opts.help "Compile via LLVM")
+    , pure LLVM
     ]

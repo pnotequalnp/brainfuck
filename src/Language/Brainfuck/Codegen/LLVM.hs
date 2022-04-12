@@ -1,4 +1,5 @@
 module Language.Brainfuck.Codegen.LLVM where
+
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.ByteString.Lazy (ByteString)
@@ -14,8 +15,8 @@ import Language.Brainfuck.Syntax
 genLLVM :: Program -> Module
 genLLVM program =
   defaultModule
-    { moduleDefinitions = defs,
-      moduleName = "brainfuck"
+    { moduleDefinitions = defs
+    , moduleName = "brainfuck"
     }
   where
     defs = execModuleBuilder emptyModuleBuilder do
@@ -30,9 +31,9 @@ genLLVM program =
       pure ()
 
 data Context = Context
-  { buffer :: Operand,
-    putbyte :: Operand,
-    getbyte :: Operand
+  { buffer :: Operand
+  , putbyte :: Operand
+  , getbyte :: Operand
   }
 
 buildIR ::

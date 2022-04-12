@@ -1,12 +1,12 @@
 module Language.Brainfuck.Codegen.LLVM.System where
 
 import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy qualified as LBS
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import LLVM.AST (Module)
 import LLVM.Pretty (ppllvm)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process.Typed
-import qualified Data.ByteString.Lazy as LBS
 
 llvmToAsm :: Module -> IO ByteString
 llvmToAsm llvm = readProcessStdout_ $ setStdin ((byteStringInput . encodeUtf8 . ppllvm) llvm) "llc"

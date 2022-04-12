@@ -30,14 +30,14 @@ program = many expr <* eof
 expr :: Parser Statement
 expr =
   asum
-    [ token ArrowL $> ShiftL,
-      token ArrowR $> ShiftR,
-      token Plus $> Inc,
-      token Minus $> Dec,
-      token Dot $> Output,
-      token Comma $> Input,
-      token Comma $> Input,
-      Loop <$> loop
+    [ token ArrowL $> ShiftL
+    , token ArrowR $> ShiftR
+    , token Plus $> Inc
+    , token Minus $> Dec
+    , token Dot $> Output
+    , token Comma $> Input
+    , token Comma $> Input
+    , Loop <$> loop
     ]
 
 loop :: Parser [Statement]
