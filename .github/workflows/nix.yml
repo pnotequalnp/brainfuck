@@ -34,7 +34,9 @@ jobs:
       run: nix develop .#ci -c cabal check
 
     - name: Check source formatting
-      run: nix develop .#ci -c fourmolu --cabal-default-extensions --mode check ./{app,src}/**/*.hs
+      run: |
+        shopt -s globstar
+        nix develop .#ci -c fourmolu --cabal-default-extensions --mode check ./{app,src}/**/*.hs
 
     - name: Check flake formatting
       run: nix develop .#ci -c nixfmt -c flake.nix

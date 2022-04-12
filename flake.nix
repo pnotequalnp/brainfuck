@@ -13,9 +13,11 @@
     let
       overlay = final: prev: {
         haskell = prev.haskell // {
-          packageOverrides = hsFinal: hsPrev: {
-            brainfuck = hsFinal.callCabal2nix "brainfuck" ./. { };
-          };
+          packageOverrides =
+            final.lib.composeExtensions prev.haskell.packageOverrides
+            (hsFinal: hsPrev: {
+              brainfuck = hsFinal.callCabal2nix "brainfuck" ./. { };
+            });
         };
       };
     in flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
