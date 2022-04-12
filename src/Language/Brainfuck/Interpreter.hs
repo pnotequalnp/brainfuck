@@ -8,7 +8,7 @@ import Data.Vector.Unboxed.Mutable (IOVector)
 import Data.Vector.Unboxed.Mutable qualified as V
 import Data.Word (Word8)
 import Language.Brainfuck.Interpreter.Internal (getByte, putByte)
-import Language.Brainfuck.Syntax (Program, Statement (..))
+import Language.Brainfuck.Syntax
 
 type Byte = Word8
 

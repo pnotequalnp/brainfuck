@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          brainfuck
-version:       0.2.0.1
+version:       0.3.0.0
 category:      Language
 license:       ISC
 license-file:  LICENSE
@@ -12,7 +12,7 @@ copyright:     Kevin Mullins 2022
 
 common base
   default-language:   GHC2021
-  ghc-options:        -Wall
+  ghc-options:        -Wall -Wcompat -Werror=incomplete-patterns -fno-show-valid-hole-fits
   default-extensions:
     BlockArguments
     DerivingVia
@@ -21,16 +21,22 @@ common base
     LexicalNegation
     NoFieldSelectors
     OverloadedRecordDot
-    ViewPatterns
+    OverloadedStrings
+    PatternSynonyms
+    RecursiveDo
 
   build-depends:
     , base ^>=4.16.0.0
+    , bytestring
+    , text
 
 library
   import:          base
   hs-source-dirs:  src
   exposed-modules:
     Language.Brainfuck
+    Language.Brainfuck.Codegen.LLVM
+    Language.Brainfuck.Codegen.LLVM.System
     Language.Brainfuck.Interpreter
     Language.Brainfuck.Parser
     Language.Brainfuck.Syntax
@@ -39,14 +45,21 @@ library
     Language.Brainfuck.Interpreter.Internal
 
   build-depends:
+    , data-fix
+    , llvm-hs-pure
+    , llvm-hs-pretty
     , monad-loops
     , mtl
+    , recursion-schemes
+    , temporary
+    , typed-process
     , vector
 
 executable brainfuck
   import:         base
   hs-source-dirs: app
   main-is:        Main.hs
+  ghc-options:    -O2 -threaded
   other-modules:
     Paths_brainfuck
 
