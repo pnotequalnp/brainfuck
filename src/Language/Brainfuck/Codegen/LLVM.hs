@@ -1,7 +1,27 @@
-module Language.Brainfuck.Codegen.LLVM where
+-- |
+-- Module      : Language.Brainfuck.Codegen.LLVM
+-- Description : Compiling LLVM IR via external processes
+-- Copyright   : Kevin Mullins 2022
+-- License     : ISC
+-- Maintainer  : kevin@pnotequalnp.com
+-- Stability   : unstable
+--
+-- = Brainfuck LLVM Backend
+-- This module defines generates LLVM IR from a Brainfuck AST.
+module Language.Brainfuck.Codegen.LLVM (
+  -- * Creating LLVM IR
+  genLLVM,
 
-import Control.Monad.Reader
-import Control.Monad.State
+  -- * Consuming LLVM IR
+  renderLLVM,
+  compileLLVM,
+  compileLLVMAsm,
+) where
+
+import Control.Monad ((<=<))
+import Control.Monad.Fix (MonadFix)
+import Control.Monad.Reader (MonadReader, ReaderT (..), asks)
+import Control.Monad.State (MonadState (..), evalStateT)
 import Data.ByteString.Lazy (ByteString)
 import Data.Foldable (traverse_)
 import Data.Text.Lazy qualified as L
@@ -9,9 +29,10 @@ import LLVM.AST (Module (..), Operand, Type (..), defaultModule, mkName)
 import LLVM.AST.IntegerPredicate qualified as LLVM
 import LLVM.IRBuilder
 import LLVM.Pretty (ppllvm)
-import Language.Brainfuck.Codegen.LLVM.System
-import Language.Brainfuck.Syntax
+import Language.Brainfuck.Codegen.LLVM.System (asmToBinary, llvmToAsm)
+import Language.Brainfuck.Syntax (Program, Statement (..))
 
+-- | Produce LLVM IR from a Brainfuck AST.
 genLLVM :: Program -> Module
 genLLVM program =
   defaultModule
@@ -102,11 +123,14 @@ buildIR = \case
     end <- block
     pure ()
 
+-- | Pretty print an LLVM IR module.
 renderLLVM :: Module -> L.Text
 renderLLVM = ppllvm
 
+-- | Compile an LLVM IR module to assembly.
 compileLLVMAsm :: Module -> IO ByteString
 compileLLVMAsm = llvmToAsm
 
+-- | Compile an LLVM IR module to binary.
 compileLLVM :: Module -> IO ByteString
 compileLLVM = asmToBinary <=< llvmToAsm

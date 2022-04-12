@@ -1,12 +1,27 @@
-module Language.Brainfuck.Parser where
+-- |
+-- Module      : Language.Brainfuck.Parser
+-- Description : Brainfuck Parser
+-- Copyright   : Kevin Mullins 2022
+-- License     : ISC
+-- Maintainer  : kevin@pnotequalnp.com
+-- Stability   : unstable
+--
+-- = Brainfuck Parser
+-- This module contains a lexer and a parser for the Brainfuck language.
+module Language.Brainfuck.Parser (
+  -- * Parsing
+  parse,
+) where
 
 import Control.Applicative (asum, many)
 import Control.Monad.State (StateT (..), evalStateT)
 import Data.Functor (($>))
 import Data.Maybe (mapMaybe)
-import Language.Brainfuck.Syntax
+import Language.Brainfuck.Syntax (Program, Statement (..), Token (..))
 import Prelude hiding (lex)
 
+-- | Lex a @String@ into a list of `Token`s. This function always succeeds (unless the input is
+-- undefined).
 lex :: String -> [Token]
 lex = mapMaybe \case
   '<' -> Just ArrowL
@@ -19,10 +34,11 @@ lex = mapMaybe \case
   ']' -> Just BracketR
   _ -> Nothing
 
-type Parser = StateT [Token] Maybe
-
+-- | Parse a @String@ into a Brainfuck AST. Failure is caused by unmatched brackets.
 parse :: String -> Maybe Program
 parse = evalStateT program . lex
+
+type Parser = StateT [Token] Maybe
 
 program :: Parser Program
 program = many expr <* eof

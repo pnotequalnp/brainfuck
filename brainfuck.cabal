@@ -51,12 +51,10 @@ library
     Language.Brainfuck.Interpreter.Internal
 
   build-depends:
-    , data-fix
     , llvm-hs-pure
     , llvm-hs-pretty
     , monad-loops
     , mtl
-    , recursion-schemes
     , temporary
     , typed-process
     , vector

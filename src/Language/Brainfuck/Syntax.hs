@@ -1,51 +1,56 @@
-module Language.Brainfuck.Syntax where
+-- |
+-- Module      : Language.Brainfuck.Syntax
+-- Description : Brainfuck Abstract Syntax
+-- Copyright   : Kevin Mullins 2022
+-- License     : ISC
+-- Maintainer  : kevin@pnotequalnp.com
+-- Stability   : unstable
+--
+-- = Brainfuck AST and Lexemes
+-- This module defines the abstract syntax of Brainfuck.
+module Language.Brainfuck.Syntax (
+  -- * Syntax
+  Program,
+  Statement (..),
+  Token (..),
+) where
 
-import Data.Fix (Fix (..))
-
+-- | Brainfuck source lexemes.
 data Token
-  = ArrowL
-  | ArrowR
-  | Plus
-  | Minus
-  | Dot
-  | Comma
-  | BracketL
-  | BracketR
+  = -- | \<
+    ArrowL
+  | -- | \>
+    ArrowR
+  | -- | \+
+    Plus
+  | -- | \-
+    Minus
+  | -- | \.
+    Dot
+  | -- | \,
+    Comma
+  | -- | \[
+    BracketL
+  | -- | \]
+    BracketR
   deriving stock (Eq)
 
-data StatementF a
-  = ShiftLF
-  | ShiftRF
-  | IncF
-  | DecF
-  | OutputF
-  | InputF
-  | LoopF [a]
-  deriving stock (Functor)
+-- | The Brainfuck abstract syntax tree.
+data Statement
+  = -- | Move the pointer to the left
+    ShiftL
+  | -- | Move the pointer to the right
+    ShiftR
+  | -- | Increment the memory cell at the pointer
+    Inc
+  | -- | Decrement the memory cell at the pointer
+    Dec
+  | -- | Output the char represented by the memory cell at the pointer
+    Output
+  | -- | Input a char and store it in the memory cell at the pointer
+    Input
+  | -- | Execute the subprogram until the current memory cell is @0@
+    Loop Program
 
-type Statement = Fix StatementF
-
-pattern ShiftL :: Statement
-pattern ShiftL = Fix ShiftLF
-
-pattern ShiftR :: Statement
-pattern ShiftR = Fix ShiftRF
-
-pattern Inc :: Statement
-pattern Inc = Fix IncF
-
-pattern Dec :: Statement
-pattern Dec = Fix DecF
-
-pattern Output :: Statement
-pattern Output = Fix OutputF
-
-pattern Input :: Statement
-pattern Input = Fix InputF
-
-pattern Loop :: [Statement] -> Statement
-pattern Loop xs = Fix (LoopF xs)
-
-{-# COMPLETE ShiftL, ShiftR, Inc, Dec, Output, Input, Loop #-}
-
+-- | A Brainfuck program consists of a sequence of `Statement`s.
 type Program = [Statement]
