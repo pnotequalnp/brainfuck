@@ -3,6 +3,7 @@ module Language.Brainfuck
     Statement,
     StatementF (..),
     compileLLVM,
+    compileLLVMAsm,
     executeStatement,
     genLLVM,
     interpret,
@@ -18,18 +19,18 @@ module Language.Brainfuck
   )
 where
 
-import Language.Brainfuck.Codegen.LLVM (compileLLVM, genLLVM, renderLLVM)
+import Language.Brainfuck.Codegen.LLVM (compileLLVM, compileLLVMAsm, genLLVM, renderLLVM)
 import Language.Brainfuck.Interpreter (executeStatement, interpret)
 import Language.Brainfuck.Parser (parse)
 import Language.Brainfuck.Syntax
   ( Program,
     Statement,
     StatementF (..),
-    pattern ShiftL,
-    pattern ShiftR,
-    pattern Inc,
     pattern Dec,
-    pattern Output,
+    pattern Inc,
     pattern Input,
     pattern Loop,
+    pattern Output,
+    pattern ShiftL,
+    pattern ShiftR,
   )

@@ -53,6 +53,8 @@
               fourmolu
               haskell-language-server
               hlint
+              pkgs.clang
+              pkgs.llvmPackages_12.llvm
             ];
           };
         }) // {

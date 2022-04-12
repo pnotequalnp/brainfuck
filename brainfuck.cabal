@@ -36,6 +36,7 @@ library
   exposed-modules:
     Language.Brainfuck
     Language.Brainfuck.Codegen.LLVM
+    Language.Brainfuck.Codegen.LLVM.System
     Language.Brainfuck.Interpreter
     Language.Brainfuck.Parser
     Language.Brainfuck.Syntax
@@ -50,12 +51,15 @@ library
     , monad-loops
     , mtl
     , recursion-schemes
+    , temporary
+    , typed-process
     , vector
 
 executable brainfuck
   import:         base
   hs-source-dirs: app
   main-is:        Main.hs
+  ghc-options:    -O2 -threaded
   other-modules:
     Paths_brainfuck
 

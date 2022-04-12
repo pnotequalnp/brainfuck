@@ -1,7 +1,7 @@
 module Main (main) where
 
 import Control.Applicative (asum, optional)
-import Data.ByteString qualified as BS
+import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (fold)
 import Data.Text.Lazy.IO qualified as L
 import Data.Version (showVersion)
@@ -22,6 +22,7 @@ data Backend
 
 data Stage
   = Binary
+  | Assembly
   | IR
 
 data Options = Options
@@ -35,7 +36,7 @@ main :: IO ()
 main = do
   Options {mode, filePath, outputFile, memory} <- Opts.execParser parser
   parsed <- BF.parse <$> maybe getContents readFile filePath
-  let outputBS = maybe BS.putStr BS.writeFile outputFile
+  let outputLBS = maybe LBS.putStr LBS.writeFile outputFile
       outputText = maybe L.putStr L.writeFile outputFile
       getProgram = maybe (hPutStrLn stderr "Invalid syntax" *> exitFailure) pure parsed
   case mode of
@@ -46,7 +47,8 @@ main = do
       case backend of
         LLVM -> case stage of
           IR -> outputText (BF.renderLLVM llvm)
-          Binary -> BF.compileLLVM llvm >>= outputBS
+          Assembly -> BF.compileLLVMAsm llvm >>= outputLBS
+          Binary -> BF.compileLLVM llvm >>= outputLBS
           where
             llvm = BF.genLLVM program
 
@@ -86,7 +88,12 @@ parseMemory =
       ]
 
 parseStage :: Parser Stage
-parseStage = Opts.flag Binary IR (Opts.long "ir" <> Opts.help "Dump intermediate representation")
+parseStage =
+  asum
+    [ Opts.flag' IR (Opts.long "emit-ir" <> Opts.help "Dump intermediate representation"),
+      Opts.flag' Assembly (Opts.long "emit-asm" <> Opts.help "Dump assembly"),
+      pure Binary
+    ]
 
 parseBackend :: Parser Backend
 parseBackend =

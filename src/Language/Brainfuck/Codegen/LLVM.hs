@@ -1,13 +1,14 @@
 module Language.Brainfuck.Codegen.LLVM where
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.ByteString (ByteString)
+import Data.ByteString.Lazy (ByteString)
 import Data.Foldable (traverse_)
 import Data.Text.Lazy qualified as L
 import LLVM.AST (Module (..), Operand, Type (..), defaultModule, mkName)
 import LLVM.AST.IntegerPredicate qualified as LLVM
 import LLVM.IRBuilder
 import LLVM.Pretty (ppllvm)
+import Language.Brainfuck.Codegen.LLVM.System
 import Language.Brainfuck.Syntax
 
 genLLVM :: Program -> Module
@@ -103,5 +104,8 @@ buildIR = \case
 renderLLVM :: Module -> L.Text
 renderLLVM = ppllvm
 
+compileLLVMAsm :: Module -> IO ByteString
+compileLLVMAsm = llvmToAsm
+
 compileLLVM :: Module -> IO ByteString
-compileLLVM = error "LLVM compilation not implemented (use --ir)"
+compileLLVM = asmToBinary <=< llvmToAsm
