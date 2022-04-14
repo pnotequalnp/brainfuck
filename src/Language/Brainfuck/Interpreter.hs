@@ -12,17 +12,45 @@ module Language.Brainfuck.Interpreter (
   -- * Interpreter
   interpret,
   executeStatement,
+
+  -- * Pointers
+  Pointer,
+  incPtr,
+  decPtr,
+  ptr,
+  withPtr,
 ) where
 
 import Control.Monad.Loops (whileM_)
-import Control.Monad.State (StateT, evalStateT, get, liftIO, modify)
 import Data.Foldable (traverse_)
 import Data.Functor ((<&>))
+import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Data.Vector.Unboxed.Mutable (IOVector)
 import Data.Vector.Unboxed.Mutable qualified as V
 import Data.Word (Word8)
 import Language.Brainfuck.Interpreter.Internal (getByte, putByte)
 import Language.Brainfuck.Syntax (Program, Statement (..))
+
+-- | Implicit pointer parameter.
+type Pointer = (?pointer :: IORef Int)
+
+-- | Increment the pointer by 1.
+incPtr :: Pointer => IO ()
+incPtr = modifyIORef' ?pointer (+ 1)
+
+-- | Decrement the pointer by 1.
+decPtr :: Pointer => IO ()
+decPtr = modifyIORef' ?pointer (- 1)
+
+-- | Get the current value of the pointer.
+ptr :: Pointer => IO Int
+ptr = readIORef ?pointer
+
+-- | Inject a pointer into an expression.
+withPtr :: IORef Int -> (Pointer => a) -> a
+withPtr pointer x = x
+  where
+    ?pointer = pointer
 
 -- | Interpret a Brainfuck program by its AST.
 interpret ::
@@ -33,26 +61,26 @@ interpret ::
   IO ()
 interpret memSize program = do
   memory <- V.replicate (fromIntegral memSize) 0
-  (`evalStateT` 0) $ traverse_ (executeStatement memory) program
+  pointer <- newIORef 0
+  withPtr pointer $ traverse_ (executeStatement memory) program
 
 -- | Execute a single Brainfuck `Statement`.
 executeStatement ::
+  Pointer =>
   -- | Memory
   IOVector Word8 ->
   -- | Statement to execute
   Statement ->
-  StateT Int IO ()
+  IO ()
 executeStatement memory = \case
-  ShiftL -> modify (- 1)
-  ShiftR -> modify (+ 1)
-  Inc -> get >>= V.modify memory (+ 1)
-  Dec -> get >>= V.modify memory (- 1)
-  Output -> do
-    x <- get >>= V.read memory
-    liftIO (putByte x)
+  ShiftL -> decPtr
+  ShiftR -> incPtr
+  Inc -> ptr >>= V.modify memory (+ 1)
+  Dec -> ptr >>= V.modify memory (- 1)
+  Output -> ptr >>= V.read memory >>= putByte
   Input -> do
-    x <- liftIO getByte
-    get >>= flip (V.write memory) x
+    x <- getByte
+    ptr >>= flip (V.write memory) x
   Loop statements ->
-    whileM_ (get >>= V.read memory <&> (/= 0)) $
+    whileM_ (ptr >>= V.read memory <&> (/= 0)) $
       traverse_ (executeStatement memory) statements
