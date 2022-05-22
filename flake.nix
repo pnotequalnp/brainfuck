@@ -37,7 +37,7 @@
           ];
         };
         ci = hs.shellFor {
-          packages = p: [ brainfuck ];
+          packages = p: [];
           nativeBuildInputs = with hs; [ cabal-install fourmolu ];
         };
       };

@@ -16,20 +16,27 @@ import Brainfuck.Syntax
 import Control.Monad (join)
 import Control.Monad.Reader (ReaderT (..), asks, lift)
 import Control.Monad.ST (ST, runST)
+import Data.ByteString.Short (ShortByteString)
 import Data.Foldable (sequenceA_, traverse_)
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import Data.Word (Word64)
-import LLVM.AST (Module, Operand, mkName)
+import LLVM.AST (Module, Name (..), Operand, mkName)
 import LLVM.AST.IntegerPredicate qualified as Pred
-import LLVM.AST.Type (Type (..))
+import LLVM.AST.Type (Type (..), i32, i8)
 import LLVM.IRBuilder
 
 -- | Generate an LLVM module from a Brainfuck program
-codegen :: (Integral byte, Integral addr) => Word64 -> [Brainfuck byte addr] -> Module
+codegen ::
+  (Integral byte, Integral addr) =>
+  -- | Memory size in bytes
+  Word64 ->
+  -- | Brainfuck program
+  [Brainfuck byte addr] ->
+  Module
 codegen memory source = runST $ buildModuleT "main" do
   pointer <- lift $ newSTRef (int64 0)
-  getchar <- extern (mkName "getchar") [] (IntegerType 32)
-  putchar <- extern (mkName "putchar") [IntegerType 32] (IntegerType 32)
+  getchar <- extern (mkName "getchar") [] i32
+  putchar <- extern (mkName "putchar") [i32] i32
   let getbyte = mdo
         br entry
         entry <- block
@@ -37,16 +44,17 @@ codegen memory source = runST $ buildModuleT "main" do
         cmp <- icmp Pred.SLT x (int32 0)
         condBr cmp exit success
         success <- block
-        x' <- trunc x (IntegerType 8)
+        x' <- trunc x i8
         br exit
         exit <- block
         phi [(x', success), (int8 0, entry)]
       putbyte x = do
-        x' <- sext x (IntegerType 32)
+        x' <- sext x i32
         _ <- call putchar [(x', [])]
         pure ()
-  _ <- function (mkName "main") [] (IntegerType 32) \_ -> do
-    buffer <- alloca (ArrayType memory (IntegerType 8)) Nothing 8
+  _ <- function (mkName "main") [] i32 \_ -> do
+    _ <- block `named` "entry"
+    buffer <- alloca (ArrayType memory i8) Nothing 8 `named` "buffer"
     let ctx = Context {buffer, pointer, getbyte, putbyte}
     (`runReaderT` ctx) $ traverse_ statement source
     ret (int32 0)
@@ -93,12 +101,13 @@ statement = cata \case
     loc <- currentCell
     x <- load loc 8
     output x
-  LoopF instructions -> mdo
+  LoopF loopBody -> mdo
     prevBlock <- currentBlock
     prevPtr <- getPointer
     br loop
 
-    loop <- block `named` "loop_head"
+    Name name <- freshName "loop"
+    loop <- namedBlock (name <> "_head")
     loopPtr <- phi [(prevPtr, prevBlock), (bodyPtr, bodyEnd)]
     putPointer loopPtr
     loc <- currentCell
@@ -106,14 +115,14 @@ statement = cata \case
     zero <- icmp Pred.EQ x (int8 0)
     condBr zero end body
 
-    body <- block `named` "loop_body"
-    sequenceA_ instructions
+    body <- namedBlock (name <> "_body")
+    sequenceA_ loopBody
     bodyPtr <- getPointer
     bodyEnd <- currentBlock
     br loop
 
-    end <- block `named` "loop_end"
-    pure ()
+    end <- namedBlock (name <> "_end")
+    putPointer loopPtr
 
 getPointer :: Codegen s Operand
 getPointer = asks pointer >>= lift . lift . lift . readSTRef
@@ -132,3 +141,10 @@ currentCell = do
   addr <- getPointer
   buffer <- asks buffer
   gep buffer ([int64 0, addr])
+
+namedBlock :: ShortByteString -> Codegen s Name
+namedBlock name = do
+  emitBlockStart name'
+  pure name'
+  where
+    name' = Name name

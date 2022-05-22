@@ -14,9 +14,10 @@ import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.Version (showVersion)
 import Data.Word (Word8)
-import Error.Diagnose (defaultStyle, printDiagnostic, stderr)
+import Error.Diagnose (defaultStyle, printDiagnostic)
 import Paths_brainfuck (version)
 import System.Exit (die, exitFailure)
+import System.IO (hPutStrLn, stderr)
 
 main :: IO ()
 main = do
@@ -51,4 +52,4 @@ main = do
       case outputFile of
         Nothing -> print llvmIR
         Just fp -> writeFile fp (show llvmIR)
-    Version -> die (showVersion version)
+    Version -> hPutStrLn stderr (showVersion version)

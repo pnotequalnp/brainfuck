@@ -30,7 +30,9 @@ type Parser = Parsec MismatchedBracket ByteString
 -- | Parse a Brainfuck program from a bytestring
 parse ::
   (Num byte, Eq byte, Num addr, Eq addr) =>
+  -- | Source filepath (for error messages)
   FilePath ->
+  -- | Source
   ByteString ->
   Either (Diagnostic String) [Brainfuck byte addr]
 parse fp source = case Text.Megaparsec.parse brainfuck fp source of

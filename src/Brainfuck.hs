@@ -40,8 +40,14 @@ import Data.Word (Word64)
 import LLVM.Pretty ()
 import Prettyprinter (Doc, Pretty (..), vsep)
 
--- | Compile a Brainfuck program to an object file
-compile :: (Integral byte, Integral addr) => Word64 -> [Brainfuck byte addr] -> IO ByteString
+-- | Compile a Brainfuck program to object code
+compile ::
+  (Integral byte, Integral addr) =>
+  -- | Memory size in bytes
+  Word64 ->
+  -- | Brainfuck program
+  [Brainfuck byte addr] ->
+  IO ByteString
 compile memory source = compileLLVM (codegen memory source)
 
 -- | Optimization options
@@ -51,7 +57,13 @@ data Optimization = Optimization
   }
 
 -- | Run various optimization passes in sequence
-optimize :: (Num byte, Ord byte, Num addr, Ord addr) => Optimization -> [Brainfuck byte addr] -> [Brainfuck byte addr]
+optimize ::
+  (Num byte, Ord byte, Num addr, Ord addr) =>
+  -- | Optimization options
+  Optimization ->
+  -- | Brainfuck program
+  [Brainfuck byte addr] ->
+  [Brainfuck byte addr]
 optimize Optimization {contraction, deloopification} =
   opt contract contraction
     . opt deloopify deloopification
