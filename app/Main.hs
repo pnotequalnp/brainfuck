@@ -1,103 +1,54 @@
+{- |
+ Module      : Main
+ Description : Brainfuck Compiler and Interpreter
+ Copyright   : Kevin Mullins 2022
+ License     : ISC
+ Maintainer  : kevin@pnotequalnp.com
+-}
 module Main (main) where
 
-import Control.Applicative (asum, optional)
+import Brainfuck (Brainfuck, pretty)
+import Brainfuck qualified as BF
+import Brainfuck.Options
+import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
-import Data.Foldable (fold)
-import Data.Text.Lazy.IO qualified as L
 import Data.Version (showVersion)
-import Language.Brainfuck qualified as BF
-import Options.Applicative (Parser, ParserInfo)
-import Options.Applicative qualified as Opts
+import Data.Word (Word8)
+import Error.Diagnose (defaultStyle, printDiagnostic, stderr)
 import Paths_brainfuck (version)
-import System.Exit (exitFailure)
-import System.IO (hPutStrLn, stderr)
-
-data Mode
-  = Interpret
-  | Compile Stage Backend
-  | Version
-
-data Backend
-  = LLVM
-
-data Stage
-  = Binary
-  | Assembly
-  | IR
-
-data Options = Options
-  { filePath :: Maybe FilePath
-  , memory :: Word
-  , outputFile :: Maybe FilePath
-  , mode :: Mode
-  }
+import System.Exit (die, exitFailure)
 
 main :: IO ()
 main = do
-  Options {mode, filePath, outputFile, memory} <- Opts.execParser parser
-  parsed <- BF.parse <$> maybe getContents readFile filePath
-  let outputLBS = maybe LBS.putStr LBS.writeFile outputFile
-      outputText = maybe L.putStr L.writeFile outputFile
-      getProgram = maybe (hPutStrLn stderr "Invalid syntax" *> exitFailure) pure parsed
+  Options {mode, sourceFile, outputFile, memory, optimization, unicode, color} <- execParser parser
+  let getSource :: IO [Brainfuck Word8 Int]
+      getSource = do
+        (fp, src) <- case sourceFile of
+          Just fp | fp /= "-" -> (fp,) <$> LBS.readFile fp
+          _ -> ("<STDIN>",) <$> LBS.getContents
+        case BF.parse fp src of
+          Right source -> pure (BF.optimize optimization source)
+          Left diag -> do
+            printDiagnostic stderr unicode color 2 defaultStyle diag
+            exitFailure
   case mode of
-    Version -> putStrLn (showVersion version)
-    Interpret -> getProgram >>= BF.interpret memory
-    Compile stage backend -> do
-      program <- getProgram
-      case backend of
-        LLVM -> case stage of
-          IR -> outputText (BF.renderLLVM llvm)
-          Assembly -> BF.compileLLVMAsm llvm >>= outputLBS
-          Binary -> BF.compileLLVM llvm >>= outputLBS
-          where
-            llvm = BF.genLLVM program
-
-parser :: ParserInfo Options
-parser =
-  Opts.info (Opts.helper <*> parseOptions) $
-    fold
-      [ Opts.fullDesc
-      , Opts.header ("Brainfuck " <> showVersion version)
-      , Opts.footer "https://github.com/pnotequalnp/brainfuck"
-      ]
-
-parseOptions :: Parser Options
-parseOptions = Options <$> optional parseFilePath <*> parseMemory <*> optional parseFilePath <*> parseMode
-
-parseFilePath :: Parser FilePath
-parseFilePath = Opts.strArgument (Opts.metavar "FILEPATH")
-
-parseMode :: Parser Mode
-parseMode =
-  asum
-    [ Opts.flag' Version (Opts.long "version" <> Opts.short 'v' <> Opts.help "Print Brainfuck version")
-    , Opts.flag' Interpret (Opts.long "exec" <> Opts.short 'x' <> Opts.help "Interpret a Brainfuck program")
-    , Compile <$> parseStage <*> parseBackend
-    ]
-
-parseMemory :: Parser Word
-parseMemory =
-  Opts.option Opts.auto $
-    fold
-      [ Opts.long "memory"
-      , Opts.short 'm'
-      , Opts.metavar "BYTES"
-      , Opts.help "Memory size in bytes"
-      , Opts.value 30_000
-      , Opts.showDefault
-      ]
-
-parseStage :: Parser Stage
-parseStage =
-  asum
-    [ Opts.flag' IR (Opts.long "emit-ir" <> Opts.help "Dump intermediate representation")
-    , Opts.flag' Assembly (Opts.long "emit-asm" <> Opts.help "Dump assembly")
-    , pure Binary
-    ]
-
-parseBackend :: Parser Backend
-parseBackend =
-  asum
-    [ Opts.flag' LLVM (Opts.long "llvm" <> Opts.help "Compile via LLVM")
-    , pure LLVM
-    ]
+    Interpret -> die "not implemented"
+    Execute -> die "not implemented"
+    Compile -> do
+      source <- getSource
+      binary <- BF.compile memory source
+      case outputFile of
+        Nothing -> BS.putStrLn binary
+        Just fp -> BS.writeFile fp binary
+    DumpIR -> do
+      source <- getSource
+      case outputFile of
+        Nothing -> print (BF.prettyIR source)
+        Just fp -> writeFile fp (show (BF.prettyIR source))
+    DumpLLVM -> do
+      source <- getSource
+      let llvmIR = pretty (BF.codegen memory source)
+      case outputFile of
+        Nothing -> print llvmIR
+        Just fp -> writeFile fp (show llvmIR)
+    Version -> die (showVersion version)

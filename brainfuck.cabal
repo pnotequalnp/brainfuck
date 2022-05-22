@@ -1,76 +1,65 @@
-cabal-version: 2.4
+cabal-version: 3.0
 name:          brainfuck
-version:       0.4.0.0
-synopsis:      Brainfuck Compiler and Interpreter
-description:   Basic compiler and interpreter for the Brainfuck language using LLVM as a backend.
-category:      Language
+version:       0.5.0.0
 license:       ISC
 license-file:  LICENSE
+copyright:     Kevin Mullins 2022
+maintainer:    kevin@pnotequalnp.com
+author:        Kevin Mullins
 homepage:      https://github.com/pnotequalnp/brainfuck
 bug-reports:   https://github.com/pnotequalnp/brainfuck/issues
-author:        Kevin Mullins
-maintainer:    kevin@pnotequalnp.com
-copyright:     Kevin Mullins 2022
+synopsis:      Brainfuck Compiler and Interpreter
+description:
+    Basic compiler and interpreter for the Brainfuck language using LLVM as a backend.
+
+category:      Language
 
 source-repository head
-  type: git
-  location: https://github.com/pnotequalnp/brainfuck
+    type:     git
+    location: https://github.com/pnotequalnp/brainfuck
 
 common base
-  default-language:   GHC2021
-  ghc-options:        -Wall -Wcompat -Werror=incomplete-patterns -fno-show-valid-hole-fits
-  default-extensions:
-    BlockArguments
-    DerivingVia
-    DuplicateRecordFields
-    ImplicitParams
-    LambdaCase
-    LexicalNegation
-    NoFieldSelectors
-    OverloadedRecordDot
-    OverloadedStrings
-    PatternSynonyms
-    RecursiveDo
+    default-language:   Haskell2010
+    default-extensions:
+        BangPatterns BlockArguments DerivingStrategies FlexibleInstances
+        ImplicitParams ImportQualifiedPost LambdaCase MultiParamTypeClasses
+        NamedFieldPuns PatternSynonyms RecursiveDo TupleSections
 
-  build-depends:
-    , base ^>=4.16.0.0
-    , bytestring
-    , text
+    ghc-options:        -Wall -Wcompat -Werror=incomplete-patterns
+    build-depends:
+        base ^>=4.14.0,
+        bytestring ^>=0.10.12,
+        diagnose ^>=2.0.0
 
 library
-  import:          base
-  hs-source-dirs:  src
-  exposed-modules:
-    Language.Brainfuck
-    Language.Brainfuck.Codegen.LLVM
-    Language.Brainfuck.Codegen.LLVM.System
-    Language.Brainfuck.Interpreter
-    Language.Brainfuck.Parser
-    Language.Brainfuck.Syntax
+    import:          base
+    exposed-modules:
+        Brainfuck
+        Brainfuck.LLVM
+        Brainfuck.LLVM.Codegen
+        Brainfuck.Optimizer
+        Brainfuck.Parser
+        Brainfuck.Syntax
 
-  other-modules:
-    Language.Brainfuck.Interpreter.Internal
-
-  build-depends:
-    , llvm-hs-pure
-    , llvm-hs-pretty
-    , monad-loops
-    , mtl
-    , temporary
-    , typed-process
-    , vector
+    hs-source-dirs:  src
+    build-depends:
+        llvm-hs ^>=9.0.1,
+        llvm-hs-pure ^>= 9.0.0,
+        llvm-hs-pretty ^>=0.9.0,
+        megaparsec ^>=9.2.0,
+        mtl ^>=2.2.2,
+        prettyprinter ^>=1.7.1,
+        recursion-schemes ^>=5.2.2
 
 executable brainfuck
-  import:         base
-  hs-source-dirs: app
-  main-is:        Main.hs
-  ghc-options:    -threaded
-  other-modules:
-    Paths_brainfuck
+    import:          base
+    main-is:         Main.hs
+    hs-source-dirs:  app
+    other-modules:
+        Brainfuck.Options
+        Paths_brainfuck
 
-  autogen-modules:
-    Paths_brainfuck
-
-  build-depends:
-    , brainfuck
-    , optparse-applicative
+    autogen-modules: Paths_brainfuck
+    build-depends:
+        brainfuck,
+        optparse-applicative ^>=0.16.1
