@@ -57,21 +57,32 @@ deloopify = \case
   x : xs -> x : deloopify xs
 
 -- | Avoid redundant pointer manipulation by doing operations at an offset from the pointer
-offsetInstructions :: (Num addr, Eq addr) => [Brainfuck byte addr] -> [Brainfuck byte addr]
+offsetInstructions :: (Num addr, Ord addr) => [Brainfuck byte addr] -> [Brainfuck byte addr]
 offsetInstructions = \case
   [] -> []
-  ShiftL off : x : ShiftR off' : xs | off == off' -> case offset (-off) x of
-    Nothing -> ShiftL off : offsetInstructions (x : ShiftR off' : xs)
-    Just x' -> x' : offsetInstructions xs
-  ShiftR off : x : ShiftL off' : xs | off == off' -> case offset off x of
-    Nothing -> ShiftR off : offsetInstructions (x : ShiftL off' : xs)
-    Just x' -> x' : offsetInstructions xs
+  Loop body : xs -> Loop (offsetInstructions body) : offsetInstructions xs
+  ShiftL off : x : ShiftL off' : xs
+    | Just x' <- offset (-off) x -> x' : offsetInstructions (ShiftL (off + off') : xs)
+  ShiftR off : x : ShiftR off' : xs
+    | Just x' <- offset off x -> x' : offsetInstructions (ShiftR (off + off') : xs)
+  ShiftL off : x : ShiftR off' : xs
+    | Just x' <- offset (-off) x ->
+      x' : offsetInstructions case compare off off' of
+        LT -> ShiftR (off' - off) : xs
+        EQ -> xs
+        GT -> ShiftL (off - off') : xs
+  ShiftR off : x : ShiftL off' : xs
+    | Just x' <- offset off x ->
+      x' : offsetInstructions case compare off off' of
+        LT -> ShiftL (off' - off) : xs
+        EQ -> xs
+        GT -> ShiftR (off - off') : xs
   x : xs -> x : offsetInstructions xs
   where
-    offset off = \case
-      Add x off' -> Just (Add x (off + off'))
-      Sub x off' -> Just (Sub x (off + off'))
-      Set x off' -> Just (Set x (off + off'))
-      Input off' -> Just (Input (off + off'))
-      Output off' -> Just (Output (off + off'))
+    offset shift = \case
+      Add x off -> Just (Add x (shift + off))
+      Sub x off -> Just (Sub x (shift + off))
+      Set x off -> Just (Set x (shift + off))
+      Input off -> Just (Input (shift + off))
+      Output off -> Just (Output (shift + off))
       _ -> Nothing
