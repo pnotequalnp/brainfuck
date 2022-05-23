@@ -65,6 +65,11 @@ execute = cata \case
     Env {buffer, pointer} <- ask
     ptr <- readMutVar pointer
     write buffer (ptr + fromIntegral offset) value
+  MulF cell value offset -> do
+    Env {buffer, pointer} <- ask
+    ptr <- readMutVar pointer
+    x <- read buffer (ptr + fromIntegral offset)
+    modify buffer (+ x * value) (ptr + fromIntegral (offset + cell))
   ShiftLF amount -> do
     Env {pointer} <- ask
     modifyMutVar' pointer (subtract (fromIntegral amount))

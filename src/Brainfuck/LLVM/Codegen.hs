@@ -20,8 +20,8 @@ import Data.ByteString.Short (ShortByteString)
 import Data.Foldable (sequenceA_, traverse_)
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import Foreign (Storable (..))
-import LLVM.AST (Module, Name (..), Operand (ConstantOperand), mkName)
-import LLVM.AST.Constant (Constant (..))
+import LLVM.AST (Module, Name (..), Operand (..), mkName)
+import LLVM.AST.Constant (Constant (Int))
 import LLVM.AST.IntegerPredicate qualified as Pred
 import LLVM.AST.Type (Type (..), i32)
 import LLVM.IRBuilder
@@ -103,6 +103,14 @@ codegen RuntimeSettings {memory, eofBehavior} source = runST $ buildModuleT "mai
       SetF value offset -> do
         loc <- bufferOffset offset
         store loc cellWidth (toByte value)
+      MulF cell value offset -> do
+        src <- bufferOffset offset
+        dest <- bufferOffset (offset + cell)
+        x <- load src cellWidth
+        y <- mul x (toByte value)
+        z <- load dest cellWidth
+        z' <- add y z
+        store dest cellWidth z'
       ShiftLF amount -> do
         addr <- getPointer
         addr' <- sub addr (toPtr amount)

@@ -32,6 +32,8 @@ data Brainfuck byte addr
     Sub byte addr
   | -- | Set the memory cell at the given offset from the pointer to the given value
     Set byte addr
+  | -- | Multiply the current offset memory cell and add the result to the combined offset cell
+    Mul addr byte addr
   | -- | Shift the pointer to the left by some offset
     ShiftL addr
   | -- | Shift the pointer to the right by some offset
@@ -95,8 +97,10 @@ instance (Pretty byte, Pretty addr, Eq addr, Num addr) => Pretty (Brainfuck byte
     Add x off -> hsep ["Add", pretty x, parens (pretty off)]
     Sub x 0 -> hsep ["Sub", pretty x]
     Sub x off -> hsep ["Sub", pretty x, parens (pretty off)]
-    Set x 0 -> hsep ["Add", pretty x]
-    Set x off -> hsep ["Add", pretty x, parens (pretty off)]
+    Set x 0 -> hsep ["Set", pretty x]
+    Set x off -> hsep ["Set", pretty x, parens (pretty off)]
+    Mul x y 0 -> hsep ["Mul", pretty x, pretty y]
+    Mul x y off -> hsep ["Mul", pretty x, pretty y, parens (pretty off)]
     ShiftL x -> hsep ["Left", pretty x]
     ShiftR x -> hsep ["Right", pretty x]
     Input 0 -> "Input"
