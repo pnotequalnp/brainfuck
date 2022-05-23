@@ -7,19 +7,23 @@
 -}
 module Brainfuck.Interpreter.IO where
 
+import Brainfuck.Configuration (EofBehavior (..))
 import Foreign (Storable (..), alloca, with)
 import System.IO (hGetBuf, hPutBuf, stdin, stdout)
 
 -- | Input function for `IO`, reading from `stdin`, giving @0@ for EOF
-stdinInputZero :: forall byte. (Num byte, Storable byte) => byte -> IO byte
-stdinInputZero _ = alloca \buf -> do
+stdinInput :: forall byte. (Num byte, Storable byte) => EofBehavior -> byte -> IO byte
+stdinInput onEof x = alloca \buf -> do
   let size = sizeOf @byte undefined
   n <- hGetBuf stdin buf size
   if n < size
-    then pure 0
+    then pure case onEof of
+      Zero -> 0
+      Unchanged -> x
+      NegativeOne -> -1
     else peek buf
 
--- | Output function for `IO`, writing to `stdin`
+-- | Output function for `IO`, writing to `stdout`
 stdoutOutput :: Storable byte => byte -> IO ()
 stdoutOutput x = with x \buf -> do
   hPutBuf stdout buf (sizeOf x)

@@ -11,6 +11,7 @@ module Brainfuck.Options (
   -- * Options
   Options (..),
   Mode (..),
+  CellSize (..),
   Optimization (..),
 
   -- * Parser
@@ -21,7 +22,7 @@ module Brainfuck.Options (
   execParser,
 ) where
 
-import Brainfuck (Optimization (..))
+import Brainfuck (EofBehavior (..), Optimization (..), RuntimeSettings (..))
 import Data.Foldable (asum)
 import Data.Version (showVersion)
 import Data.Word (Word64)
@@ -34,16 +35,23 @@ data Mode
   | Compile
   | DumpIR
   | DumpLLVM
-  | Version
+
+data CellSize
+  = Eight
+  | Sixteen
+  | ThirtyTwo
+  | SixtyFour
 
 data Options = Options
   { mode :: Mode
-  , memory :: Word64
+  , cellSize :: CellSize
+  , runtimeSettings :: RuntimeSettings
   , optimization :: Optimization
   , unicode :: Bool
   , color :: Bool
   , outputFile :: Maybe FilePath
   , sourceFile :: Maybe FilePath
+  , printVersion :: Bool
   }
 
 parser :: ParserInfo Options
@@ -59,12 +67,14 @@ parseOptions :: Parser Options
 parseOptions =
   Options
     <$> parseMode
-    <*> parseMemory
+    <*> parseCellSize
+    <*> parseRuntimeSettings
     <*> parseOptimization
     <*> parseUnicode
     <*> parseColor
     <*> parseOutput
     <*> parseSource
+    <*> parseVersion
 
 parseMode :: Parser Mode
 parseMode =
@@ -73,9 +83,38 @@ parseMode =
     , flag' Compile (long "compile" <> short 'c' <> help "Compile source file")
     , flag' DumpIR (long "dump-ir" <> help "Output IR from source file" <> hidden)
     , flag' DumpLLVM (long "dump-llvm" <> help "Output LLVM IR from source file" <> hidden)
-    , flag' Version (long "version" <> help "Print version information and exit" <> hidden)
     , pure Interpret
     ]
+
+parseCellSize :: Parser CellSize
+parseCellSize =
+  option reader $
+    mconcat
+      [ long "size"
+      , short 's'
+      , metavar "8|16|32|64"
+      , help "Size of each memory cell"
+      , value Eight
+      , showDefaultWith \case
+          Eight -> "8"
+          Sixteen -> "16"
+          ThirtyTwo -> "32"
+          SixtyFour -> "64"
+      , hidden
+      ]
+  where
+    reader = maybeReader \case
+      "8" -> Just Eight
+      "16" -> Just Sixteen
+      "32" -> Just ThirtyTwo
+      "64" -> Just SixtyFour
+      _ -> Nothing
+
+parseRuntimeSettings :: Parser RuntimeSettings
+parseRuntimeSettings =
+  RuntimeSettings
+    <$> parseMemory
+    <*> parseEof
 
 parseMemory :: Parser Word64
 parseMemory =
@@ -83,12 +122,33 @@ parseMemory =
     mconcat
       [ long "memory"
       , short 'm'
-      , metavar "BYTES"
-      , help "Memory size in bytes"
+      , metavar "INT"
+      , help "Number of memory cells"
       , value 30000
       , showDefault
       , hidden
       ]
+
+parseEof :: Parser EofBehavior
+parseEof =
+  option reader $
+    mconcat
+      [ long "eof"
+      , help "Behavior on EOF"
+      , value Unchanged
+      , showDefaultWith \case
+          Zero -> "0"
+          Unchanged -> "unchanged"
+          NegativeOne -> "-1"
+      , metavar "unchanged|0|-1"
+      , hidden
+      ]
+  where
+    reader = maybeReader \case
+      "unchanged" -> Just Unchanged
+      "0" -> Just Zero
+      "-1" -> Just NegativeOne
+      _ -> Nothing
 
 parseSource :: Parser (Maybe FilePath)
 parseSource = optional (strArgument (metavar "SOURCE_FILE"))
@@ -118,3 +178,6 @@ parseUnicode = not <$> switch (long "ascii" <> internal)
 
 parseColor :: Parser Bool
 parseColor = not <$> switch (long "no-color" <> internal)
+
+parseVersion :: Parser Bool
+parseVersion = switch (long "version" <> help "Print version information and exit" <> hidden)

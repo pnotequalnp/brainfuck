@@ -19,6 +19,10 @@ module Brainfuck (
   contract,
   deloopify,
 
+  -- * Configuration
+  RuntimeSettings (..),
+  EofBehavior (..),
+
   -- * Compilation
   compile,
   compileLLVM,
@@ -35,8 +39,9 @@ module Brainfuck (
   prettyIR,
 ) where
 
+import Brainfuck.Configuration (EofBehavior (..), RuntimeSettings (..))
 import Brainfuck.Interpreter (Env (..), execute, interpret)
-import Brainfuck.Interpreter.IO (stdinInputZero, stdoutOutput)
+import Brainfuck.Interpreter.IO (stdinInput, stdoutOutput)
 import Brainfuck.LLVM (compileLLVM)
 import Brainfuck.LLVM.Codegen (codegen)
 import Brainfuck.Optimizer (contract, deloopify)
@@ -45,16 +50,15 @@ import Brainfuck.Syntax (Brainfuck (..), BrainfuckF (..))
 import Data.Bool (bool)
 import Data.ByteString (ByteString)
 import Data.Vector.Unboxed (Unbox)
-import Data.Word (Word64)
 import Foreign (Storable)
 import LLVM.Pretty ()
 import Prettyprinter (Doc, Pretty (..), vsep)
 
 -- | Compile a brainfuck program to object code
 compile ::
-  (Integral byte, Integral addr) =>
-  -- | Memory size in bytes
-  Word64 ->
+  (Integral byte, Storable byte, Integral addr) =>
+  -- | Runtime settings
+  RuntimeSettings ->
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   IO ByteString
@@ -83,12 +87,13 @@ optimize Optimization {contraction, deloopification} =
 -- | Interpret in `IO`, reading from and writing to `stdin` and `stdout`
 interpretIO ::
   (Num byte, Eq byte, Storable byte, Unbox byte, Integral addr) =>
-  -- | Memory size in bytes
-  Word64 ->
+  -- | Runtime settings
+  RuntimeSettings ->
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   IO (Env IO byte)
-interpretIO = interpret stdinInputZero stdoutOutput
+interpretIO RuntimeSettings {memory, eofBehavior} =
+  interpret (stdinInput eofBehavior) stdoutOutput memory
 
 -- | Pretty print brainfuck IR
 prettyIR :: (Pretty byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
