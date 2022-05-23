@@ -80,19 +80,28 @@ codegen RuntimeSettings {memory, eofBehavior} source = runST $ buildModuleT "mai
     literal = ConstantOperand . Int cellWidth
     toPtr = int64 . toInteger
     toByte = literal . toInteger
+
+    bufferOffset x = do
+      addr <- getPointer
+      addr' <- case x of
+        0 -> pure addr
+        _ -> add addr (toPtr x)
+      buffer <- asks buffer
+      gep buffer [int64 0, addr']
+
     statement = cata \case
-      AddF amount _offset -> do
-        loc <- currentCell
+      AddF amount offset -> do
+        loc <- bufferOffset offset
         x <- load loc cellWidth
         x' <- add x (toByte amount)
         store loc cellWidth x'
-      SubF amount _offset -> do
-        loc <- currentCell
+      SubF amount offset -> do
+        loc <- bufferOffset offset
         x <- load loc cellWidth
         x' <- sub x (toByte amount)
         store loc cellWidth x'
-      SetF value _offset -> do
-        loc <- currentCell
+      SetF value offset -> do
+        loc <- bufferOffset offset
         store loc cellWidth (toByte value)
       ShiftLF amount -> do
         addr <- getPointer
@@ -102,13 +111,13 @@ codegen RuntimeSettings {memory, eofBehavior} source = runST $ buildModuleT "mai
         addr <- getPointer
         addr' <- add addr (toPtr amount)
         putPointer addr'
-      InputF _offset -> do
-        loc <- currentCell
+      InputF offset -> do
+        loc <- bufferOffset offset
         input <- asks getbyte
         input loc
-      OutputF _offset -> do
+      OutputF offset -> do
         output <- asks putbyte
-        loc <- currentCell
+        loc <- bufferOffset offset
         x <- load loc cellWidth
         output x
       LoopF loopBody -> mdo
@@ -120,7 +129,7 @@ codegen RuntimeSettings {memory, eofBehavior} source = runST $ buildModuleT "mai
         loop <- namedBlock (name <> "_head")
         loopPtr <- phi [(prevPtr, prevBlock), (bodyPtr, bodyEnd)]
         putPointer loopPtr
-        loc <- currentCell
+        loc <- bufferOffset 0
         x <- load loc cellWidth
         zero <- icmp Pred.EQ x (literal 0)
         condBr zero end body
@@ -148,12 +157,6 @@ getPointer = asks pointer >>= lift . lift . lift . readSTRef
 
 putPointer :: Operand -> Codegen s ()
 putPointer x = asks pointer >>= lift . lift . lift . (`writeSTRef` x)
-
-currentCell :: Codegen s Operand
-currentCell = do
-  addr <- getPointer
-  buffer <- asks buffer
-  gep buffer [int64 0, addr]
 
 namedBlock :: ShortByteString -> Codegen s Name
 namedBlock name = do
