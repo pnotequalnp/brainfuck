@@ -24,11 +24,19 @@ module Brainfuck (
   compileLLVM,
   codegen,
 
+  -- * Interpreting
+  interpretIO,
+  interpret,
+  execute,
+  Env (..),
+
   -- * Pretty Printing
   pretty,
   prettyIR,
 ) where
 
+import Brainfuck.Interpreter (Env (..), execute, interpret)
+import Brainfuck.Interpreter.IO (stdinInputZero, stdoutOutput)
 import Brainfuck.LLVM (compileLLVM)
 import Brainfuck.LLVM.Codegen (codegen)
 import Brainfuck.Optimizer (contract, deloopify)
@@ -36,11 +44,13 @@ import Brainfuck.Parser (parse)
 import Brainfuck.Syntax (Brainfuck (..), BrainfuckF (..))
 import Data.Bool (bool)
 import Data.ByteString (ByteString)
+import Data.Vector.Unboxed (Unbox)
 import Data.Word (Word64)
+import Foreign (Storable)
 import LLVM.Pretty ()
 import Prettyprinter (Doc, Pretty (..), vsep)
 
--- | Compile a Brainfuck program to object code
+-- | Compile a brainfuck program to object code
 compile ::
   (Integral byte, Integral addr) =>
   -- | Memory size in bytes
@@ -70,6 +80,16 @@ optimize Optimization {contraction, deloopification} =
   where
     opt = bool id
 
--- | Pretty print Brainfuck IR
+-- | Interpret in `IO`, reading from and writing to `stdin` and `stdout`
+interpretIO ::
+  (Num byte, Eq byte, Storable byte, Unbox byte, Integral addr) =>
+  -- | Memory size in bytes
+  Word64 ->
+  -- | Brainfuck program
+  [Brainfuck byte addr] ->
+  IO (Env IO byte)
+interpretIO = interpret stdinInputZero stdoutOutput
+
+-- | Pretty print brainfuck IR
 prettyIR :: (Pretty byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
 prettyIR = vsep . fmap pretty

@@ -10,7 +10,7 @@ homepage:      https://github.com/pnotequalnp/brainfuck
 bug-reports:   https://github.com/pnotequalnp/brainfuck/issues
 synopsis:      Brainfuck Compiler and Interpreter
 description:
-    Basic compiler and interpreter for the Brainfuck language using LLVM as a backend.
+    Basic compiler and interpreter for the brainfuck language using LLVM as a backend.
 
 category:      Language
 
@@ -22,8 +22,9 @@ common base
     default-language:   Haskell2010
     default-extensions:
         BangPatterns BlockArguments DerivingStrategies FlexibleInstances
-        ImplicitParams ImportQualifiedPost LambdaCase MultiParamTypeClasses
-        NamedFieldPuns PatternSynonyms RecursiveDo TupleSections
+        ImportQualifiedPost LambdaCase MultiParamTypeClasses NamedFieldPuns
+        PatternSynonyms RecursiveDo ScopedTypeVariables TupleSections
+        TypeApplications
 
     ghc-options:        -Wall -Wcompat -Werror=incomplete-patterns
     build-depends:
@@ -35,6 +36,8 @@ library
     import:          base
     exposed-modules:
         Brainfuck
+        Brainfuck.Interpreter
+        Brainfuck.Interpreter.IO
         Brainfuck.LLVM
         Brainfuck.LLVM.Codegen
         Brainfuck.Optimizer
@@ -49,7 +52,9 @@ library
         megaparsec ^>=9.2.0,
         mtl ^>=2.2.2,
         prettyprinter ^>=1.7.1,
-        recursion-schemes ^>=5.2.2
+        primitive ^>=0.7.3,
+        recursion-schemes ^>=5.2.2,
+        vector ^>=0.12.3
 
 executable brainfuck
     import:          base

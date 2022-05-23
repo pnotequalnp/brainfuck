@@ -74,7 +74,7 @@ parseMode =
     , flag' DumpIR (long "dump-ir" <> help "Output IR from source file" <> hidden)
     , flag' DumpLLVM (long "dump-llvm" <> help "Output LLVM IR from source file" <> hidden)
     , flag' Version (long "version" <> help "Print version information and exit" <> hidden)
-    , pure Execute
+    , pure Interpret
     ]
 
 parseMemory :: Parser Word64

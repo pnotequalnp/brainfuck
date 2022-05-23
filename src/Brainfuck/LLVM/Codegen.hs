@@ -25,7 +25,7 @@ import LLVM.AST.IntegerPredicate qualified as Pred
 import LLVM.AST.Type (Type (..), i32, i8)
 import LLVM.IRBuilder
 
--- | Generate an LLVM module from a Brainfuck program
+-- | Generate an LLVM module from a brainfuck program
 codegen ::
   (Integral byte, Integral addr) =>
   -- | Memory size in bytes

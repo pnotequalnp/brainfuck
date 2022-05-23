@@ -7,7 +7,7 @@
 -}
 module Main (main) where
 
-import Brainfuck (Brainfuck, pretty)
+import Brainfuck (Brainfuck)
 import Brainfuck qualified as BF
 import Brainfuck.Options
 import Data.ByteString.Char8 qualified as BS
@@ -33,7 +33,10 @@ main = do
             printDiagnostic stderr unicode color 2 defaultStyle diag
             exitFailure
   case mode of
-    Interpret -> die "not implemented"
+    Interpret -> do
+      source <- getSource
+      _ <- BF.interpretIO memory source
+      pure ()
     Execute -> die "not implemented"
     Compile -> do
       source <- getSource
@@ -48,7 +51,7 @@ main = do
         Just fp -> writeFile fp (show (BF.prettyIR source))
     DumpLLVM -> do
       source <- getSource
-      let llvmIR = pretty (BF.codegen memory source)
+      let llvmIR = BF.pretty (BF.codegen memory source)
       case outputFile of
         Nothing -> print llvmIR
         Just fp -> writeFile fp (show llvmIR)

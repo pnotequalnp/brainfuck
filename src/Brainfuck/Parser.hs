@@ -27,7 +27,7 @@ data MismatchedBracket
 
 type Parser = Parsec MismatchedBracket ByteString
 
--- | Parse a Brainfuck program from a bytestring
+-- | Parse a brainfuck program from a bytestring
 parse ::
   (Num byte, Eq byte, Num addr, Eq addr) =>
   -- | Source filepath (for error messages)
