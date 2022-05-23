@@ -48,9 +48,30 @@ deloopify = \case
   Loop [Sub 1 off] : xs -> Set 0 off : deloopify xs
   Loop [Set x off] : xs -> Set x off : deloopify xs
   Loop [Loop body] : xs -> deloopify (Loop body : xs)
-  Loop body : xs -> case body == body' of
-    False -> deloopify (Loop body' : xs)
-    True -> Loop body : deloopify xs
+  Loop body : xs ->
+    if body == body'
+      then Loop body : deloopify xs
+      else deloopify (Loop body' : xs)
     where
       body' = deloopify body
   x : xs -> x : deloopify xs
+
+-- | Avoid redundant pointer manipulation by doing operations at an offset from the pointer
+offsetInstructions :: (Num addr, Eq addr) => [Brainfuck byte addr] -> [Brainfuck byte addr]
+offsetInstructions = \case
+  [] -> []
+  ShiftL off : x : ShiftR off' : xs | off == off' -> case offset (-off) x of
+    Nothing -> ShiftL off : offsetInstructions (x : ShiftR off' : xs)
+    Just x' -> x' : offsetInstructions xs
+  ShiftR off : x : ShiftL off' : xs | off == off' -> case offset off x of
+    Nothing -> ShiftR off : offsetInstructions (x : ShiftL off' : xs)
+    Just x' -> x' : offsetInstructions xs
+  x : xs -> x : offsetInstructions xs
+  where
+    offset off = \case
+      Add x off' -> Just (Add x (off + off'))
+      Sub x off' -> Just (Sub x (off + off'))
+      Set x off' -> Just (Set x (off + off'))
+      Input off' -> Just (Input (off + off'))
+      Output off' -> Just (Output (off + off'))
+      _ -> Nothing

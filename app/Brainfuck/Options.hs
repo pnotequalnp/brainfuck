@@ -165,6 +165,7 @@ parseOptimization =
       Optimization
         { contraction = True
         , deloopification = True
+        , offsets = True
         }
 
 parseOptimizations :: Parser Optimization
@@ -172,6 +173,7 @@ parseOptimizations =
   Optimization
     <$> switch (long "contract" <> help "Contract `+`/`-` and `<`/`>` chains to single instructions" <> hidden)
     <*> switch (long "deloopify" <> help "Reduce `[-]`-like loops to single instructions" <> hidden)
+    <*> switch (long "offset" <> help "Perform operations at offsets from the pointer" <> hidden)
 
 parseUnicode :: Parser Bool
 parseUnicode = not <$> switch (long "ascii" <> internal)

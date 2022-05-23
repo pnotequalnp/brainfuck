@@ -44,7 +44,7 @@ import Brainfuck.Interpreter (Env (..), execute, interpret)
 import Brainfuck.Interpreter.IO (stdinInput, stdoutOutput)
 import Brainfuck.LLVM (compileLLVM)
 import Brainfuck.LLVM.Codegen (codegen)
-import Brainfuck.Optimizer (contract, deloopify)
+import Brainfuck.Optimizer (contract, deloopify, offsetInstructions)
 import Brainfuck.Parser (parse)
 import Brainfuck.Syntax (Brainfuck (..), BrainfuckF (..))
 import Data.Bool (bool)
@@ -68,6 +68,7 @@ compile memory source = compileLLVM (codegen memory source)
 data Optimization = Optimization
   { contraction :: Bool
   , deloopification :: Bool
+  , offsets :: Bool
   }
 
 -- | Run various optimization passes in sequence
@@ -78,8 +79,9 @@ optimize ::
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   [Brainfuck byte addr]
-optimize Optimization {contraction, deloopification} =
-  opt contract contraction
+optimize Optimization {contraction, deloopification, offsets} =
+  opt offsetInstructions offsets
+    . opt contract contraction
     . opt deloopify deloopification
   where
     opt = bool id
