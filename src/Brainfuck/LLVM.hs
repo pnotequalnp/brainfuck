@@ -8,14 +8,22 @@
 module Brainfuck.LLVM where
 
 import Data.ByteString (ByteString)
-import LLVM (moduleObject, withModuleFromAST)
-import LLVM.AST (Module)
+import LLVM (Module, moduleObject, withModuleFromAST)
+import LLVM.AST qualified as AST (Module)
 import LLVM.Context (withContext)
+import LLVM.PassManager (PassSetSpec (..), defaultCuratedPassSetSpec, runPassManager, withPassManager)
 import LLVM.Target (withHostTargetMachineDefault)
 
 -- | Compile an LLVM module to object code
-compileLLVM :: Module -> IO ByteString
+compileLLVM :: AST.Module -> IO ByteString
 compileLLVM m = withContext \ctx ->
   withModuleFromAST ctx m \m' ->
-    withHostTargetMachineDefault \tgt ->
+    withHostTargetMachineDefault \tgt -> do
+      _ <- optimizeLLVM m'
       moduleObject tgt m'
+
+-- | Optimize an LLVM module
+optimizeLLVM :: Module -> IO Bool
+optimizeLLVM m = withPassManager passes \pm -> runPassManager pm m
+  where
+    passes = defaultCuratedPassSetSpec {optLevel = Just 1}

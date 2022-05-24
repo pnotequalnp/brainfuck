@@ -26,6 +26,7 @@ module Brainfuck (
   -- * Compilation
   compile,
   compileLLVM,
+  optimizeLLVM,
   codegen,
 
   -- * Interpreting
@@ -41,7 +42,7 @@ module Brainfuck (
 import Brainfuck.Configuration (EofBehavior (..), RuntimeSettings (..))
 import Brainfuck.Interpreter (execute, interpret)
 import Brainfuck.Interpreter.IO (handleInput, handleOutput)
-import Brainfuck.LLVM (compileLLVM)
+import Brainfuck.LLVM (compileLLVM, optimizeLLVM)
 import Brainfuck.LLVM.Codegen (codegen)
 import Brainfuck.Optimizer (contract, deloopify, offsetInstructions)
 import Brainfuck.Parser (parse)
