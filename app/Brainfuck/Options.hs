@@ -1,3 +1,4 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE StrictData #-}
 
 {- |
@@ -111,10 +112,16 @@ parseCellSize =
       _ -> Nothing
 
 parseRuntimeSettings :: Parser RuntimeSettings
-parseRuntimeSettings =
-  RuntimeSettings
-    <$> parseMemory
-    <*> parseEof
+parseRuntimeSettings = do
+  posMem <- parseMemory
+  initialPointer <- parseNegativeMemory
+  eofBehavior <- parseEof
+  pure
+    RuntimeSettings
+      { memory = posMem + initialPointer
+      , initialPointer
+      , eofBehavior
+      }
 
 parseMemory :: Parser Word64
 parseMemory =
@@ -123,8 +130,21 @@ parseMemory =
       [ long "memory"
       , short 'm'
       , metavar "INT"
-      , help "Number of memory cells"
+      , help "Number of (positive) memory cells"
       , value 30000
+      , showDefault
+      , hidden
+      ]
+
+parseNegativeMemory :: Parser Word64
+parseNegativeMemory =
+  option auto $
+    mconcat
+      [ long "negative"
+      , short 'n'
+      , metavar "INT"
+      , help "Number of negative memory cells"
+      , value 0
       , showDefault
       , hidden
       ]

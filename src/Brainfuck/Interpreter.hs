@@ -16,31 +16,32 @@ import Data.Foldable (sequenceA_, traverse_)
 import Data.Primitive (modifyMutVar', newMutVar)
 import Data.Primitive.MutVar (MutVar, readMutVar)
 import Data.Vector.Unboxed.Mutable (MVector, Unbox, modify, modifyM, new, read, write)
-import Data.Word (Word64)
 import Prelude hiding (read)
 
 -- | Interpret a brainfuck program
 interpret ::
-  (PrimMonad m, Num byte, Eq byte, Unbox byte, Integral addr) =>
+  (PrimMonad m, Num byte, Eq byte, Unbox byte) =>
   -- | Input function
   (byte -> m byte) ->
   -- | Output function
   (byte -> m ()) ->
   -- | Memory size in bytes
-  Word64 ->
+  Int ->
+  -- | Initial pointer location
+  Int ->
   -- | Brainfuck program
-  [Brainfuck byte addr] ->
-  m (MVector (PrimState m) byte, addr)
-interpret input output memory program = do
+  [Brainfuck byte Int] ->
+  m (MVector (PrimState m) byte, Int)
+interpret input output memory ptr program = do
   buffer <- new (fromIntegral memory)
-  pointer <- newMutVar 0
+  pointer <- newMutVar ptr
   traverse_ (execute input output buffer pointer) program
-  ptr <- readMutVar pointer
-  pure (buffer, fromIntegral ptr)
+  ptr' <- readMutVar pointer
+  pure (buffer, ptr')
 
 -- | Execute a single brainfuck instruction
 execute ::
-  (PrimMonad m, Num byte, Eq byte, Unbox byte, Integral addr) =>
+  (PrimMonad m, Num byte, Eq byte, Unbox byte) =>
   -- | Input function
   (byte -> m byte) ->
   -- | Output function
@@ -50,32 +51,32 @@ execute ::
   -- | Pointer
   MutVar (PrimState m) Int ->
   -- | Brainfuck instruction
-  Brainfuck byte addr ->
+  Brainfuck byte Int ->
   m ()
 execute input output buffer pointer = cata \case
   AddF amount offset -> do
     ptr <- readMutVar pointer
-    modify buffer (+ amount) (ptr + fromIntegral offset)
+    modify buffer (+ amount) (ptr + offset)
   SubF amount offset -> do
     ptr <- readMutVar pointer
-    modify buffer (subtract amount) (ptr + fromIntegral offset)
+    modify buffer (subtract amount) (ptr + offset)
   SetF value offset -> do
     ptr <- readMutVar pointer
-    write buffer (ptr + fromIntegral offset) value
+    write buffer (ptr + offset) value
   MulF cell value offset -> do
     ptr <- readMutVar pointer
-    x <- read buffer (ptr + fromIntegral offset)
-    modify buffer (+ x * value) (ptr + fromIntegral (offset + cell))
+    x <- read buffer (ptr + offset)
+    modify buffer (+ x * value) (ptr + offset + cell)
   ShiftLF amount -> do
-    modifyMutVar' pointer (subtract (fromIntegral amount))
+    modifyMutVar' pointer (subtract amount)
   ShiftRF amount -> do
-    modifyMutVar' pointer (+ fromIntegral amount)
+    modifyMutVar' pointer (+ amount)
   InputF offset -> do
     ptr <- readMutVar pointer
-    modifyM buffer input (ptr + fromIntegral offset)
+    modifyM buffer input (ptr + offset)
   OutputF offset -> do
     ptr <- readMutVar pointer
-    value <- read buffer (ptr + fromIntegral offset)
+    value <- read buffer (ptr + offset)
     output value
   LoopF body -> do
     let body' = sequenceA_ body

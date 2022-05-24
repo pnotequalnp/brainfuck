@@ -16,6 +16,8 @@ import Data.Word (Word64)
 data RuntimeSettings = RuntimeSettings
   { -- | Number of memory cells available
     memory :: Word64
+  , -- | Initial location of the pointer
+    initialPointer :: Word64
   , -- | Behavior when the input stream has reached EOF
     eofBehavior :: EofBehavior
   }

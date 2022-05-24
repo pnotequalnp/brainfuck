@@ -35,8 +35,8 @@ codegen ::
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   Module
-codegen RuntimeSettings {memory, eofBehavior} source = runST $ buildModuleT "main" do
-  pointer <- lift $ newSTRef (int64 0)
+codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ buildModuleT "main" do
+  pointer <- lift $ newSTRef (toPtr (fromIntegral initialPointer))
   getchar <- extern (mkName "getchar") [] i32
   putchar <- extern (mkName "putchar") [i32] i32
   let getbyte loc = mdo

@@ -89,7 +89,7 @@ optimize Optimization {contraction, deloopification, offsets} =
 
 -- | Interpret in `IO`, reading from and writing to `stdin` and `stdout`
 interpretIO ::
-  (Num byte, Eq byte, Storable byte, Unbox byte, Integral addr) =>
+  (Num byte, Eq byte, Storable byte, Unbox byte) =>
   -- | Input handle
   Handle ->
   -- | Output handle
@@ -97,10 +97,10 @@ interpretIO ::
   -- | Runtime settings
   RuntimeSettings ->
   -- | Brainfuck program
-  [Brainfuck byte addr] ->
-  IO (IOVector byte, addr)
-interpretIO hIn hOut RuntimeSettings {memory, eofBehavior} =
-  interpret (handleInput hIn eofBehavior) (handleOutput hOut) memory
+  [Brainfuck byte Int] ->
+  IO (IOVector byte, Int)
+interpretIO hIn hOut RuntimeSettings {memory, initialPointer, eofBehavior} =
+  interpret (handleInput hIn eofBehavior) (handleOutput hOut) (fromIntegral memory) (fromIntegral initialPointer)
 
 -- | Pretty print brainfuck IR
 prettyIR :: (Pretty byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
