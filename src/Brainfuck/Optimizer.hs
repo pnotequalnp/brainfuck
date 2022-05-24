@@ -41,13 +41,14 @@ contract = \case
   x : xs -> x : contract xs
 
 -- | Replace common loop idioms with single instructions
-deloopify :: (Num byte, Eq byte, Eq addr) => [Brainfuck byte addr] -> [Brainfuck byte addr]
+deloopify :: (Num byte, Eq byte, Num addr, Eq addr) => [Brainfuck byte addr] -> [Brainfuck byte addr]
 deloopify = \case
   [] -> []
   Loop [Add 1 off] : xs -> Set 0 off : deloopify xs
   Loop [Sub 1 off] : xs -> Set 0 off : deloopify xs
   Loop [Set x off] : xs -> Set x off : deloopify xs
   Loop [Loop body] : xs -> deloopify (Loop body : xs)
+  Loop body : xs | Just (reset, mults) <- multLoop body -> deloopify (mults <> (reset : xs))
   Loop body : xs ->
     if body == body'
       then Loop body : deloopify xs
@@ -55,6 +56,15 @@ deloopify = \case
     where
       body' = deloopify body
   x : xs -> x : deloopify xs
+  where
+    multLoop = \case
+      Add n off : xs | off /= 0 -> fmap (Mul off n 0 :) <$> multLoop xs
+      Sub 1 0 : xs -> (Set 0 0,) <$> multLoop' xs
+      _ -> Nothing
+    multLoop' = \case
+      Add n off : xs | off /= 0 -> (Mul off n 0 :) <$> multLoop' xs
+      [] -> pure []
+      _ -> Nothing
 
 -- | Avoid redundant pointer manipulation by doing operations at an offset from the pointer
 offsetInstructions :: (Num addr, Ord addr) => [Brainfuck byte addr] -> [Brainfuck byte addr]

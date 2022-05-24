@@ -80,7 +80,8 @@ optimize ::
   [Brainfuck byte addr] ->
   [Brainfuck byte addr]
 optimize Optimization {contraction, deloopification, offsets} =
-  opt offsetInstructions offsets
+  opt deloopify deloopification
+    . opt offsetInstructions offsets
     . opt contract contraction
     . opt deloopify deloopification
   where
