@@ -19,7 +19,8 @@ import Data.Word (Word16, Word32, Word64, Word8)
 import Error.Diagnose (defaultStyle, printDiagnostic)
 import Paths_brainfuck (version)
 import System.Exit (die, exitFailure, exitSuccess)
-import System.IO (hPutStrLn, stderr)
+import System.FilePath (replaceExtension)
+import System.IO (hPutStrLn, stderr, stdin, stdout)
 
 main :: IO ()
 main = do
@@ -61,12 +62,13 @@ main'
       run source =
         case mode of
           Interpret -> do
-            _ <- BF.interpretIO runtimeSettings source
+            _ <- BF.interpretIO stdin stdout runtimeSettings source
             pure ()
           Execute -> die "not implemented"
           Compile -> do
             binary <- BF.compile runtimeSettings source
             case outputFile of
+              Nothing | Just fp <- sourceFile -> BS.writeFile (replaceExtension fp ".o") binary
               Nothing -> BS.putStrLn binary
               Just fp -> BS.writeFile fp binary
           DumpIR -> case outputFile of
