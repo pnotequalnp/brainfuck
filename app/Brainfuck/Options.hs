@@ -60,7 +60,7 @@ parser =
   info (parseOptions <**> helper) $
     mconcat
       [ fullDesc
-      , header ("Brainfuck " <> showVersion version)
+      , header ("brainfuck " <> showVersion version)
       , footer "https://github.com/pnotequalnp/brainfuck"
       ]
 
