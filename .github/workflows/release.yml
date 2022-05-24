@@ -19,27 +19,27 @@ jobs:
           access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
           extra-substituters = file://${{ github.workspace }}/store-cache?trusted=true
 
-    - name: Set up store cache
+    - name: Set Up Store Cache
       uses: actions/cache@v2
       with:
         path: store-cache
         key: ghc8107
 
-    - name: Generate executable
+    - name: Generate Executable
       run: nix build .#default -L
 
-    - name: Package executable
+    - name: Package Executable
       run: |
         cp result/bin/brainfuck brainfuck
         nix shell nixpkgs#patchelf
         sudo patchelf brainfuck --set-interpreter /usr/lib64/ld-linux-x86-64.so.2
-        tar -czvf brainfuck.tar.gz brainfuck
+        tar -czvf brainfuck-linux-x86_64.tar.gz brainfuck
 
-    - name: Upload artifacts
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
         name: executable
-        path: brainfuck.tar.gz
+        path: brainfuck-linux-x86_64.tar.gz
 
   build-docs:
     name: Build Documentation
@@ -54,67 +54,47 @@ jobs:
           access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
           extra-substituters = file://${{ github.workspace }}/store-cache?trusted=true
 
-    - name: Set up store cache
+    - name: Set Up Store Cache
       uses: actions/cache@v2
       with:
         path: store-cache
         key: ghc8107
 
-    - name: Generate documentation
+    - name: Generate Documentation
       run: nix build .#default.doc -L
 
-    - name: Prepare documentation
+    - name: Prepare Documentation
       run: cp -r ./result-doc/share/doc/*/html .
 
-    - name: Upload artifacts
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
         name: haddock
         path: html
 
-  release:
+  create-release:
     name: Create Release
     runs-on: ubuntu-latest
+    needs: [build-binary]
     steps:
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
-        draft: false
-        prerelease: false
-
-  upload-binary:
-    name: Upload Documentation
-    runs-on: ubuntu-latest
-    needs: [build-binary, release]
-    steps:
-    - name: Download artifacts
+    - name: Download Artifacts
+      id: download
       uses: actions/download-artifact@v3
       with:
         name: executable
-        path: brainfuck.tar.gz
 
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Release
+      uses: softprops/action-gh-release@v1
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./brainfuck.tar.gz
-        asset_name: brainfuck-${{ github.ref }}-linux-x86_64.tar.gz
-        asset_content_type: application/gzip
+        files: ${{steps.download.outputs.download-path}}/brainfuck-linux-x86_64.tar.gz
+        fail_on_unmatched_files: true
 
   upload-docs:
     name: Upload Documentation
     runs-on: ubuntu-latest
-    needs: [build-docs, release]
+    needs: [build-docs]
     steps:
-    - name: Download artifacts
+    - name: Download Artifacts
       uses: actions/download-artifact@v3
       with:
         name: haddock
