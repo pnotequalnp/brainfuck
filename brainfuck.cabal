@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          brainfuck
-version:       0.5.0.1
+version:       0.6.0.0
 license:       ISC
 license-file:  LICENSE
 copyright:     Kevin Mullins 2022
@@ -10,7 +10,7 @@ homepage:      https://github.com/pnotequalnp/brainfuck
 bug-reports:   https://github.com/pnotequalnp/brainfuck/issues
 synopsis:      Brainfuck Compiler and Interpreter
 description:
-    Basic compiler and interpreter for the brainfuck language using LLVM as a backend.
+    Configurable interpreter and optimizing compiler for the brainfuck language using LLVM as a backend.
 
 category:      Language
 

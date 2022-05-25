@@ -70,8 +70,8 @@ statement =
   choice
     [ Inc <$ sym 43 -- +
     , Dec <$ sym 45 -- -
-    , Backward <$ sym 60 -- <
-    , Forward <$ sym 62 -- >
+    , Left_ <$ sym 60 -- <
+    , Right_ <$ sym 62 -- >
     , In <$ sym 44 -- ,
     , Out <$ sym 46 -- .
     , Loop <$> do

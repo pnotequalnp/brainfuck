@@ -110,15 +110,10 @@ statement input output literal cellWidth bufferOffset pointer = cata \case
     x <- load loc cellWidth
     x' <- add x (toByte amount)
     store loc cellWidth x'
-  SubF amount offset -> do
-    loc <- bufferOffset offset
-    x <- load loc cellWidth
-    x' <- sub x (toByte amount)
-    store loc cellWidth x'
   SetF value offset -> do
     loc <- bufferOffset offset
     store loc cellWidth (toByte value)
-  MulF cell value offset -> do
+  MulF value cell offset -> do
     src <- bufferOffset offset
     dest <- bufferOffset (offset + cell)
     x <- load src cellWidth
@@ -126,11 +121,7 @@ statement input output literal cellWidth bufferOffset pointer = cata \case
     z <- load dest cellWidth
     z' <- add y z
     store dest cellWidth z'
-  ShiftLF amount -> do
-    addr <- getPointer
-    addr' <- sub addr (toPtr amount)
-    putPointer addr'
-  ShiftRF amount -> do
+  ShiftF amount -> do
     addr <- getPointer
     addr' <- add addr (toPtr amount)
     putPointer addr'
@@ -163,6 +154,7 @@ statement input output literal cellWidth bufferOffset pointer = cata \case
 
     end <- namedBlock (name <> "_end")
     putPointer loopPtr
+  NopF -> pure ()
   where
     toByte = literal . fromIntegral
     getPointer = lift . lift $ readSTRef pointer

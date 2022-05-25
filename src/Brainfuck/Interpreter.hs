@@ -57,19 +57,14 @@ execute input output buffer pointer = cata \case
   AddF amount offset -> do
     ptr <- readMutVar pointer
     modify buffer (+ amount) (ptr + offset)
-  SubF amount offset -> do
-    ptr <- readMutVar pointer
-    modify buffer (subtract amount) (ptr + offset)
   SetF value offset -> do
     ptr <- readMutVar pointer
     write buffer (ptr + offset) value
-  MulF cell value offset -> do
+  MulF value cell offset -> do
     ptr <- readMutVar pointer
     x <- read buffer (ptr + offset)
     modify buffer (+ x * value) (ptr + offset + cell)
-  ShiftLF amount -> do
-    modifyMutVar' pointer (subtract amount)
-  ShiftRF amount -> do
+  ShiftF amount -> do
     modifyMutVar' pointer (+ amount)
   InputF offset -> do
     ptr <- readMutVar pointer
@@ -87,3 +82,4 @@ execute input output buffer pointer = cata \case
             body'
             loop
     loop
+  NopF -> pure ()

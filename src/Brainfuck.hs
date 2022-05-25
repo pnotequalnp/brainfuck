@@ -104,5 +104,5 @@ interpretIO hIn hOut RuntimeSettings {memory, initialPointer, eofBehavior} =
   interpret (handleInput hIn eofBehavior) (handleOutput hOut) (fromIntegral memory) (fromIntegral initialPointer)
 
 -- | Pretty print brainfuck IR
-prettyIR :: (Pretty byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
+prettyIR :: (Pretty byte, Eq byte, Num byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
 prettyIR = vsep . fmap pretty

@@ -15,29 +15,9 @@ contract = \case
   [] -> []
   Loop body : xs -> Loop (contract body) : contract xs
   Add _ off : Set x off' : xs | off == off' -> contract (Set x off' : xs)
-  Sub _ off : Set x off' : xs | off == off' -> contract (Set x off' : xs)
   Set x off : Add y off' : xs | off == off' -> contract (Set (x + y) off : xs)
-  Set x off : Sub y off' : xs | off == off' -> contract (Set (x - y) off : xs)
   Add x off : Add y off' : xs | off == off' -> contract (Add (x + y) off : xs)
-  Sub x off : Sub y off' : xs | off == off' -> contract (Sub (x + y) off : xs)
-  Add x off : Sub y off' : xs | off == off' -> case compare x y of
-    LT -> contract (Sub (y - x) off : xs)
-    EQ -> contract xs
-    GT -> contract (Add (x - y) off : xs)
-  Sub x off : Add y off' : xs | off == off' -> case compare x y of
-    LT -> contract (Add (y - x) off : xs)
-    EQ -> contract xs
-    GT -> contract (Sub (x - y) off : xs)
-  ShiftR x : ShiftR y : xs -> contract (ShiftR (x + y) : xs)
-  ShiftL x : ShiftL y : xs -> contract (ShiftL (x + y) : xs)
-  ShiftR x : ShiftL y : xs -> case compare x y of
-    LT -> contract (ShiftL (y - x) : xs)
-    EQ -> contract xs
-    GT -> contract (ShiftR (x - y) : xs)
-  ShiftL x : ShiftR y : xs -> case compare x y of
-    LT -> contract (ShiftR (y - x) : xs)
-    EQ -> contract xs
-    GT -> contract (ShiftL (x - y) : xs)
+  Shift x : Shift y : xs -> contract (Shift (x + y) : xs)
   x : xs -> x : contract xs
 
 -- | Replace common loop idioms with single instructions
@@ -45,7 +25,6 @@ deloopify :: (Num byte, Eq byte, Num addr, Eq addr) => [Brainfuck byte addr] -> 
 deloopify = \case
   [] -> []
   Loop [Add 1 off] : xs -> Set 0 off : deloopify xs
-  Loop [Sub 1 off] : xs -> Set 0 off : deloopify xs
   Loop [Set x off] : xs -> Set x off : deloopify xs
   Loop [Loop body] : xs -> deloopify (Loop body : xs)
   Loop body : xs | Just (reset, mults) <- multLoop body -> deloopify (mults <> (reset : xs))
@@ -58,11 +37,11 @@ deloopify = \case
   x : xs -> x : deloopify xs
   where
     multLoop = \case
-      Add n off : xs | off /= 0 -> fmap (Mul off n 0 :) <$> multLoop xs
-      Sub 1 0 : xs -> (Set 0 0,) <$> multLoop' xs
+      Add n off : xs | off /= 0 -> fmap (Mul n off 0 :) <$> multLoop xs
+      Dec : xs -> (Set 0 0,) <$> multLoop' xs
       _ -> Nothing
     multLoop' = \case
-      Add n off : xs | off /= 0 -> (Mul off n 0 :) <$> multLoop' xs
+      Add n off : xs | off /= 0 -> (Mul n off 0 :) <$> multLoop' xs
       [] -> pure []
       _ -> Nothing
 
@@ -71,27 +50,12 @@ offsetInstructions :: (Num addr, Ord addr) => [Brainfuck byte addr] -> [Brainfuc
 offsetInstructions = \case
   [] -> []
   Loop body : xs -> Loop (offsetInstructions body) : offsetInstructions xs
-  ShiftL off : x : ShiftL off' : xs
-    | Just x' <- offset (-off) x -> x' : offsetInstructions (ShiftL (off + off') : xs)
-  ShiftR off : x : ShiftR off' : xs
-    | Just x' <- offset off x -> x' : offsetInstructions (ShiftR (off + off') : xs)
-  ShiftL off : x : ShiftR off' : xs
-    | Just x' <- offset (-off) x ->
-      x' : offsetInstructions case compare off off' of
-        LT -> ShiftR (off' - off) : xs
-        EQ -> xs
-        GT -> ShiftL (off - off') : xs
-  ShiftR off : x : ShiftL off' : xs
-    | Just x' <- offset off x ->
-      x' : offsetInstructions case compare off off' of
-        LT -> ShiftL (off' - off) : xs
-        EQ -> xs
-        GT -> ShiftR (off - off') : xs
+  Shift off : x : Shift off' : xs
+    | Just x' <- offset off x -> x' : offsetInstructions (Shift (off + off') : xs)
   x : xs -> x : offsetInstructions xs
   where
     offset shift = \case
       Add x off -> Just (Add x (shift + off))
-      Sub x off -> Just (Sub x (shift + off))
       Set x off -> Just (Set x (shift + off))
       Input off -> Just (Input (shift + off))
       Output off -> Just (Output (shift + off))
