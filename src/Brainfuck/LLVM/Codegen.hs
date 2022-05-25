@@ -14,17 +14,20 @@ module Brainfuck.LLVM.Codegen (
 
 import Brainfuck.Configuration (EofBehavior (..), RuntimeSettings (..))
 import Brainfuck.Syntax
-import Control.Monad.Reader (ReaderT (..), asks, lift)
 import Control.Monad.ST (ST, runST)
+import Control.Monad.Trans (lift)
 import Data.ByteString.Short (ShortByteString)
 import Data.Foldable (sequenceA_, traverse_)
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
+import Data.Word (Word32)
 import Foreign (Storable (..))
 import LLVM.AST (Module, Name (..), Operand (..), mkName)
 import LLVM.AST.Constant (Constant (Int))
 import LLVM.AST.IntegerPredicate qualified as Pred
 import LLVM.AST.Type (Type (..), i32)
 import LLVM.IRBuilder
+
+type Codegen s = IRBuilderT (ModuleBuilderT (ST s))
 
 -- | Generate an LLVM module from a brainfuck program
 codegen ::
@@ -36,7 +39,7 @@ codegen ::
   [Brainfuck byte addr] ->
   Module
 codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ buildModuleT "main" do
-  pointer <- lift $ newSTRef (toPtr (fromIntegral initialPointer))
+  pointer <- lift . newSTRef $ toPtr initialPointer
   getchar <- extern (mkName "getchar") [] i32
   putchar <- extern (mkName "putchar") [i32] i32
   let getbyte loc = mdo
@@ -68,103 +71,102 @@ codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ b
         _ <- call putchar [(x', [])]
         pure ()
   _ <- function (mkName "main") [] i32 \_ -> do
-    _ <- block `named` "entry"
+    _ <- namedBlock "entry"
     buffer <- alloca (ArrayType memory cellType) Nothing cellWidth `named` "buffer"
-    let ctx = Context {buffer, pointer, getbyte, putbyte}
-    (`runReaderT` ctx) $ traverse_ statement source
+    traverse_ (statement getbyte putbyte literal cellWidth (bufferOffset buffer pointer) pointer) source
     ret (int32 0)
   pure ()
   where
     cellWidth = fromIntegral (sizeOf @byte undefined) * 8
     cellType = IntegerType cellWidth
-    literal = ConstantOperand . Int cellWidth
-    toPtr = int64 . toInteger
-    toByte = literal . toInteger
-
-    bufferOffset x = do
-      addr <- getPointer
+    literal = ConstantOperand . Int cellWidth . toInteger
+    bufferOffset buffer pointer x = do
+      addr <- lift . lift . readSTRef $ pointer
       addr' <- case x of
         0 -> pure addr
         _ -> add addr (toPtr x)
-      buffer <- asks buffer
       gep buffer [int64 0, addr']
 
-    statement = cata \case
-      AddF amount offset -> do
-        loc <- bufferOffset offset
-        x <- load loc cellWidth
-        x' <- add x (toByte amount)
-        store loc cellWidth x'
-      SubF amount offset -> do
-        loc <- bufferOffset offset
-        x <- load loc cellWidth
-        x' <- sub x (toByte amount)
-        store loc cellWidth x'
-      SetF value offset -> do
-        loc <- bufferOffset offset
-        store loc cellWidth (toByte value)
-      MulF cell value offset -> do
-        src <- bufferOffset offset
-        dest <- bufferOffset (offset + cell)
-        x <- load src cellWidth
-        y <- mul x (toByte value)
-        z <- load dest cellWidth
-        z' <- add y z
-        store dest cellWidth z'
-      ShiftLF amount -> do
-        addr <- getPointer
-        addr' <- sub addr (toPtr amount)
-        putPointer addr'
-      ShiftRF amount -> do
-        addr <- getPointer
-        addr' <- add addr (toPtr amount)
-        putPointer addr'
-      InputF offset -> do
-        loc <- bufferOffset offset
-        input <- asks getbyte
-        input loc
-      OutputF offset -> do
-        output <- asks putbyte
-        loc <- bufferOffset offset
-        x <- load loc cellWidth
-        output x
-      LoopF loopBody -> mdo
-        prevBlock <- currentBlock
-        prevPtr <- getPointer
-        br loop
+statement ::
+  (Integral byte, Integral addr) =>
+  -- | Input codegen
+  (Operand -> Codegen s ()) ->
+  -- | Output codegen
+  (Operand -> Codegen s ()) ->
+  -- | Construct a literal value
+  (Int -> Operand) ->
+  -- | Width of each cell
+  Word32 ->
+  -- | Get address of cell in buffer at an offset
+  (addr -> Codegen s Operand) ->
+  -- | Pointer
+  STRef s Operand ->
+  -- | Brainfuck instruction
+  Brainfuck byte addr ->
+  Codegen s ()
+statement input output literal cellWidth bufferOffset pointer = cata \case
+  AddF amount offset -> do
+    loc <- bufferOffset offset
+    x <- load loc cellWidth
+    x' <- add x (toByte amount)
+    store loc cellWidth x'
+  SubF amount offset -> do
+    loc <- bufferOffset offset
+    x <- load loc cellWidth
+    x' <- sub x (toByte amount)
+    store loc cellWidth x'
+  SetF value offset -> do
+    loc <- bufferOffset offset
+    store loc cellWidth (toByte value)
+  MulF cell value offset -> do
+    src <- bufferOffset offset
+    dest <- bufferOffset (offset + cell)
+    x <- load src cellWidth
+    y <- mul x (toByte value)
+    z <- load dest cellWidth
+    z' <- add y z
+    store dest cellWidth z'
+  ShiftLF amount -> do
+    addr <- getPointer
+    addr' <- sub addr (toPtr amount)
+    putPointer addr'
+  ShiftRF amount -> do
+    addr <- getPointer
+    addr' <- add addr (toPtr amount)
+    putPointer addr'
+  InputF offset -> do
+    loc <- bufferOffset offset
+    input loc
+  OutputF offset -> do
+    loc <- bufferOffset offset
+    x <- load loc cellWidth
+    output x
+  LoopF loopBody -> mdo
+    prevBlock <- currentBlock
+    prevPtr <- getPointer
+    br loop
 
-        Name name <- freshName "loop"
-        loop <- namedBlock (name <> "_head")
-        loopPtr <- phi [(prevPtr, prevBlock), (bodyPtr, bodyEnd)]
-        putPointer loopPtr
-        loc <- bufferOffset 0
-        x <- load loc cellWidth
-        zero <- icmp Pred.EQ x (literal 0)
-        condBr zero end body
+    Name name <- freshName "loop"
+    loop <- namedBlock (name <> "_head")
+    loopPtr <- phi [(prevPtr, prevBlock), (bodyPtr, bodyEnd)]
+    putPointer loopPtr
+    loc <- bufferOffset 0
+    x <- load loc cellWidth
+    zero <- icmp Pred.EQ x (literal 0)
+    condBr zero end body
 
-        body <- namedBlock (name <> "_body")
-        sequenceA_ loopBody
-        bodyPtr <- getPointer
-        bodyEnd <- currentBlock
-        br loop
+    body <- namedBlock (name <> "_body")
+    sequenceA_ loopBody
+    bodyPtr <- getPointer
+    bodyEnd <- currentBlock
+    br loop
 
-        end <- namedBlock (name <> "_end")
-        putPointer loopPtr
-
-data Context s = Context
-  { buffer :: Operand
-  , pointer :: STRef s Operand
-  , getbyte :: Operand -> Codegen s ()
-  , putbyte :: Operand -> Codegen s ()
-  }
-
-type Codegen s = ReaderT (Context s) (IRBuilderT (ModuleBuilderT (ST s)))
-
-getPointer :: Codegen s Operand
-getPointer = asks pointer >>= lift . lift . lift . readSTRef
-
-putPointer :: Operand -> Codegen s ()
-putPointer x = asks pointer >>= lift . lift . lift . (`writeSTRef` x)
+    end <- namedBlock (name <> "_end")
+    putPointer loopPtr
+  where
+    toByte = literal . fromIntegral
+    getPointer = lift . lift $ readSTRef pointer
+    putPointer = lift . lift . writeSTRef pointer
 
 namedBlock :: ShortByteString -> Codegen s Name
 namedBlock name = do
@@ -172,3 +174,6 @@ namedBlock name = do
   pure name'
   where
     name' = Name name
+
+toPtr :: Integral a => a -> Operand
+toPtr = int64 . toInteger
