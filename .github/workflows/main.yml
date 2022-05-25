@@ -1,0 +1,128 @@
+name: "Main"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v15
+      with:
+        extra_nix_config: |
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+          extra-substituters = file://${{ github.workspace }}/store-cache?trusted=true
+
+    - name: Set up store cache
+      uses: actions/cache@v2
+      with:
+        path: store-cache
+        key: ghc8107
+
+    - name: Build and run tests
+      run: nix build
+
+    - name: Update store cache
+      run: |
+        sudo $(command -v nix) copy --to file://${PWD}/store-cache\?compression=none .#default.env
+
+  cabal-file:
+    name: Cabal File
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v15
+      with:
+        extra_nix_config: |
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+          extra-substituters = file://${{ github.workspace }}/store-cache?trusted=true
+
+    - name: Set up store cache
+      uses: actions/cache@v2
+      with:
+        path: store-cache
+        key: ci
+
+    - name: Check Cabal file
+      run: nix develop .#ci -c cabal check
+
+    - name: Update store cache
+      run: |
+        sudo $(command -v nix) copy --to file://${PWD}/store-cache\?compression=none .#devShells.x86_64-linux.ci
+
+  source-formatting:
+    name: Source Formatting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v15
+      with:
+        extra_nix_config: |
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+          extra-substituters = file://${{ github.workspace }}/store-cache?trusted=true
+
+    - name: Set up store cache
+      uses: actions/cache@v2
+      with:
+        path: store-cache
+        key: ci
+
+    - name: Check source formatting
+      run: |
+        shopt -s globstar
+        nix develop .#ci -c fourmolu --cabal-default-extensions --mode check ./{app,src}/**/*.hs
+
+    - name: Update store cache
+      run: |
+        sudo $(command -v nix) copy --to file://${PWD}/store-cache\?compression=none .#devShells.x86_64-linux.ci
+
+  hlint:
+    name: HLint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v15
+      with:
+        extra_nix_config: |
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+          extra-substituters = file://${{ github.workspace }}/store-cache?trusted=true
+
+    - name: Set up store cache
+      uses: actions/cache@v2
+      with:
+        path: store-cache
+        key: ci
+
+    - name: Run HLint
+      run: nix develop .#ci -c hlint -X RecursiveDo {src,app}
+
+    - name: Update store cache
+      run: |
+        sudo $(command -v nix) copy --to file://${PWD}/store-cache\?compression=none .#devShells.x86_64-linux.ci
+
+  flake:
+    name: Flake
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v15
+
+    - name: Check flake
+      run: nix flake check
