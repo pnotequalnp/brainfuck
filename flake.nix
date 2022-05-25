@@ -40,7 +40,7 @@
         };
         ci = hs.shellFor {
           packages = p: [ ];
-          nativeBuildInputs = with hs; [ cabal-install fourmolu ];
+          nativeBuildInputs = with hs; [ cabal-install fourmolu hlint ];
         };
       };
     };
