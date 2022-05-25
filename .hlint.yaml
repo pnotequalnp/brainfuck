@@ -1,0 +1,5 @@
+- arguments:
+  - -XRecursiveDo
+
+- ignore:
+    name: Avoid lambda using `infix`

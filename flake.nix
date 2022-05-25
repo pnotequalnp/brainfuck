@@ -1,4 +1,6 @@
 {
+  description = "Configurable brainfuck interpreter and optimizing compiler";
+
   inputs.nixpkgs.url = "nixpkgs/nixpkgs-unstable";
 
   outputs = { self, nixpkgs }:
@@ -12,18 +14,18 @@
           (final: prev: { llvm-hs = unmarkBroken (prev.llvm-hs); });
       };
       brainfuck = hs.callCabal2nix "brainfuck" ./. { };
-    in rec {
+    in {
       packages.${system} = {
-        brainfuck = brainfuck;
         default = brainfuck;
+        brainfuck = brainfuck;
       };
 
       apps.${system} = rec {
+        default = brainfuck;
         brainfuck = {
           type = "app";
           program = "${self.packages.${system}.brainfuck}/bin/brainfuck";
         };
-        default = brainfuck;
       };
 
       devShells.${system} = {
@@ -37,8 +39,8 @@
           ];
         };
         ci = hs.shellFor {
-          packages = p: [];
-          nativeBuildInputs = with hs; [ cabal-install fourmolu ];
+          packages = p: [ ];
+          nativeBuildInputs = with hs; [ cabal-install fourmolu hlint ];
         };
       };
     };
