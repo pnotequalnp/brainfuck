@@ -84,7 +84,7 @@ codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ b
       addr <- lift . lift . readSTRef $ pointer
       addr' <- case x of
         0 -> pure addr
-        _ -> add addr (toPtr x)
+        _ -> addSub toPtr addr x
       gep buffer [int64 0, addr']
 
 statement ::
@@ -108,7 +108,7 @@ statement input output literal cellWidth bufferOffset pointer = cata \case
   AddF amount offset -> do
     loc <- bufferOffset offset
     x <- load loc cellWidth
-    x' <- add x (toByte amount)
+    x' <- addSub toByte x amount
     store loc cellWidth x'
   SetF value offset -> do
     loc <- bufferOffset offset
@@ -123,7 +123,7 @@ statement input output literal cellWidth bufferOffset pointer = cata \case
     store dest cellWidth z'
   ShiftF amount -> do
     addr <- getPointer
-    addr' <- add addr (toPtr amount)
+    addr' <- addSub toPtr addr amount
     putPointer addr'
   InputF offset -> do
     loc <- bufferOffset offset
@@ -169,3 +169,10 @@ namedBlock name = do
 
 toPtr :: Integral a => a -> Operand
 toPtr = int64 . toInteger
+
+addSub :: forall a m. (MonadIRBuilder m, Num a, Ord a) => (a -> Operand) -> Operand -> a -> m Operand
+addSub toOp y x
+  | x < 0 = sub y (toOp (-x)) -- signed <0
+  | -x >= x = add y (toOp x) -- unsigned >=0
+  | (-1 :: a) < 0 = add y (toOp x) -- signed >=0
+  | otherwise = sub y (toOp (-x)) -- unsigned <0
