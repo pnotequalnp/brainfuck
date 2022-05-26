@@ -18,6 +18,7 @@ contract = \case
   Set x off : Add y off' : xs | off == off' -> contract (Set (x + y) off : xs)
   Add x off : Add y off' : xs | off == off' -> contract (Add (x + y) off : xs)
   Shift x : Shift y : xs -> contract (Shift (x + y) : xs)
+  Shift 0 : xs -> contract xs
   x : xs -> x : contract xs
 
 -- | Replace common loop idioms with single instructions
