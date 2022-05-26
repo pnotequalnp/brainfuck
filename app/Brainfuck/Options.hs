@@ -48,6 +48,7 @@ data Options = Options
   , cellSize :: CellSize
   , runtimeSettings :: RuntimeSettings
   , optimization :: Optimization
+  , passes :: Word
   , unicode :: Bool
   , color :: Bool
   , outputFile :: Maybe FilePath
@@ -71,6 +72,7 @@ parseOptions =
     <*> parseCellSize
     <*> parseRuntimeSettings
     <*> parseOptimization
+    <*> parsePasses
     <*> parseUnicode
     <*> parseColor
     <*> parseOutput
@@ -194,6 +196,19 @@ parseOptimizations =
     <$> switch (long "contract" <> help "Contract `+`/`-` and `<`/`>` chains to single instructions" <> hidden)
     <*> switch (long "deloopify" <> help "Reduce `[-]`-like loops to single instructions" <> hidden)
     <*> switch (long "offset" <> help "Perform operations at offsets from the pointer" <> hidden)
+
+parsePasses :: Parser Word
+parsePasses =
+  option auto $
+    mconcat
+      [ long "passes"
+      , short 'p'
+      , metavar "INT"
+      , help "Number of iterated optimization passes"
+      , value 3
+      , showDefault
+      , hidden
+      ]
 
 parseUnicode :: Parser Bool
 parseUnicode = not <$> switch (long "ascii" <> internal)

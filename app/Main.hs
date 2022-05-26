@@ -36,6 +36,7 @@ main'
     , cellSize
     , runtimeSettings
     , optimization
+    , passes
     , unicode
     , color
     , printVersion
@@ -55,7 +56,7 @@ main'
       parse :: (Num byte, Num addr, Ord byte, Ord addr) => FilePath -> ByteString -> IO [Brainfuck byte addr]
       parse fp src =
         case BF.parse fp src of
-          Right source -> pure (BF.optimize optimization source)
+          Right source -> pure (BF.optimize optimization passes source)
           Left diag -> do
             printDiagnostic stderr unicode color 2 defaultStyle diag
             exitFailure

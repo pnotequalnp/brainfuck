@@ -77,18 +77,21 @@ optimize ::
   (Num byte, Ord byte, Num addr, Ord addr) =>
   -- | Optimization options
   Optimization ->
+  -- | Number of passes
+  Word ->
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   [Brainfuck byte addr]
-optimize Optimization {contraction, deloopification, offsets} =
-  opt offsetInstructions offsets
-    . opt contract contraction
-    . opt deloopify deloopification
-    . opt offsetInstructions offsets
-    . opt contract contraction
-    . opt deloopify deloopification
+optimize Optimization {contraction, deloopification, offsets} = composeN pass
   where
     opt = bool id
+    pass =
+      opt offsetInstructions offsets
+        . opt contract contraction
+        . opt deloopify deloopification
+    composeN f = \case
+      0 -> id
+      n -> f . composeN f (n - 1)
 
 -- | Interpret in `IO`, reading from and writing to `stdin` and `stdout`
 interpretIO ::
