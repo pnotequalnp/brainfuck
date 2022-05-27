@@ -15,7 +15,7 @@ import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Version (showVersion)
-import Data.Word (Word16, Word32, Word64, Word8)
+import Data.Int (Int16, Int32, Int64, Int8)
 import Error.Diagnose (defaultStyle, printDiagnostic)
 import Paths_brainfuck (version)
 import System.Exit (die, exitFailure, exitSuccess)
@@ -48,10 +48,10 @@ main'
       Just fp | fp /= "-" -> (fp,) <$> LBS.readFile fp
       _ -> ("<STDIN>",) <$> LBS.getContents
     case cellSize of
-      Eight -> parse @Word8 @Int fp source >>= run
-      Sixteen -> parse @Word16 @Int fp source >>= run
-      ThirtyTwo -> parse @Word32 @Int fp source >>= run
-      SixtyFour -> parse @Word64 @Int fp source >>= run
+      Eight -> parse @Int8 @Int fp source >>= run
+      Sixteen -> parse @Int16 @Int fp source >>= run
+      ThirtyTwo -> parse @Int32 @Int fp source >>= run
+      SixtyFour -> parse @Int64 @Int fp source >>= run
     where
       parse :: (Num byte, Num addr, Ord byte, Ord addr) => FilePath -> ByteString -> IO [Brainfuck byte addr]
       parse fp src =

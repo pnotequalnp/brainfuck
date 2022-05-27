@@ -93,8 +93,10 @@ instance (Pretty byte, Pretty addr, Eq byte, Num byte, Eq addr, Num addr) => Pre
   pretty = \case
     Inc -> "Inc"
     Dec -> "Dec"
-    Add x 0 -> hsep ["Add", pretty x]
-    Add x off -> hsep ["Add", pretty x, parens (pretty off)]
+    Add x off
+      | off == 0 -> hsep ["Add", pretty x]
+      | x == -1 -> hsep ["Dec", parens (pretty off)]
+      | otherwise -> hsep ["Add", pretty x, parens (pretty off)]
     Set x 0 -> hsep ["Set", pretty x]
     Set x off -> hsep ["Set", pretty x, parens (pretty off)]
     Mul x y 0 -> hsep ["Mul", pretty x, pretty y]
