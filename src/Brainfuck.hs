@@ -25,6 +25,7 @@ module Brainfuck (
 
   -- * Compilation
   compile,
+  jitLLVM,
   compileLLVM,
   optimizeLLVM,
   codegen,
@@ -35,14 +36,14 @@ module Brainfuck (
   execute,
 
   -- * Pretty Printing
-  pretty,
-  prettyIR,
+  showLLVM,
+  showIR,
 ) where
 
 import Brainfuck.Configuration (EofBehavior (..), RuntimeSettings (..))
 import Brainfuck.Interpreter (execute, interpret)
 import Brainfuck.Interpreter.IO (handleInput, handleOutput)
-import Brainfuck.LLVM (compileLLVM, optimizeLLVM)
+import Brainfuck.LLVM (compileLLVM, jitLLVM, optimizeLLVM, showLLVM)
 import Brainfuck.LLVM.Codegen (codegen)
 import Brainfuck.Optimizer (contract, deloopify, offsetInstructions)
 import Brainfuck.Parser (parse)
@@ -51,7 +52,6 @@ import Data.Bool (bool)
 import Data.ByteString (ByteString)
 import Data.Vector.Unboxed.Mutable (IOVector, Unbox)
 import Foreign (Storable)
-import LLVM.Pretty ()
 import Prettyprinter (Doc, Pretty (..), vsep)
 import System.IO (Handle)
 
@@ -109,5 +109,5 @@ interpretIO hIn hOut RuntimeSettings {memory, initialPointer, eofBehavior} =
   interpret (handleInput hIn eofBehavior) (handleOutput hOut) (fromIntegral memory) (fromIntegral initialPointer)
 
 -- | Pretty print brainfuck IR
-prettyIR :: (Pretty byte, Eq byte, Num byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
-prettyIR = vsep . fmap pretty
+showIR :: (Pretty byte, Eq byte, Num byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
+showIR = vsep . fmap pretty

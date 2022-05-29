@@ -14,12 +14,12 @@ import Control.Monad (when)
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy qualified as LBS
-import Data.Version (showVersion)
 import Data.Int (Int16, Int32, Int64, Int8)
+import Data.Version (showVersion)
 import Error.Diagnose (defaultStyle, printDiagnostic)
 import Paths_brainfuck (version)
-import System.Exit (die, exitFailure, exitSuccess)
-import System.FilePath (replaceExtension)
+import System.Exit (exitFailure, exitSuccess)
+import System.FilePath (replaceExtension, takeExtension)
 import System.IO (hPutStrLn, stderr, stdin, stdout)
 
 main :: IO ()
@@ -65,18 +65,21 @@ main'
           Interpret -> do
             _ <- BF.interpretIO stdin stdout runtimeSettings source
             pure ()
-          Execute -> die "not implemented"
+          Execute -> BF.jitLLVM (BF.codegen runtimeSettings source)
           Compile -> do
             binary <- BF.compile runtimeSettings source
             case outputFile of
-              Nothing | Just fp <- sourceFile -> BS.writeFile (replaceExtension fp ".o") binary
+              Nothing
+                | Just fp <- sourceFile
+                  , takeExtension fp /= ".o" ->
+                  BS.writeFile (replaceExtension fp ".o") binary
               Nothing -> BS.putStrLn binary
               Just fp -> BS.writeFile fp binary
           DumpIR -> case outputFile of
-            Nothing -> print (BF.prettyIR source)
-            Just fp -> writeFile fp (show (BF.prettyIR source))
+            Nothing -> print (BF.showIR source)
+            Just fp -> writeFile fp (show (BF.showIR source))
           DumpLLVM -> do
-            let llvmIR = BF.pretty (BF.codegen runtimeSettings source)
+            llvm <- BF.showLLVM (BF.codegen runtimeSettings source)
             case outputFile of
-              Nothing -> print llvmIR
-              Just fp -> writeFile fp (show llvmIR)
+              Nothing -> BS.putStr llvm
+              Just fp -> BS.writeFile fp llvm
