@@ -12,7 +12,7 @@ module Brainfuck.Options (
   -- * Options
   Options (..),
   Mode (..),
-  CellSize (..),
+  Width (..),
   Optimization (..),
 
   -- * Parser
@@ -37,15 +37,12 @@ data Mode
   | DumpIR
   | DumpLLVM
 
-data CellSize
-  = Eight
-  | Sixteen
-  | ThirtyTwo
-  | SixtyFour
+data Width = W8 | W16 | W32 | W64
 
 data Options = Options
   { mode :: Mode
-  , cellSize :: CellSize
+  , cellWidth :: Width
+  , pointerWidth :: Width
   , runtimeSettings :: RuntimeSettings
   , optimization :: Optimization
   , passes :: Word
@@ -69,7 +66,8 @@ parseOptions :: Parser Options
 parseOptions =
   Options
     <$> parseMode
-    <*> parseCellSize
+    <*> parseCellWidth
+    <*> parsePointerWidth
     <*> parseRuntimeSettings
     <*> parseOptimization
     <*> parsePasses
@@ -89,29 +87,47 @@ parseMode =
     , pure Execute
     ]
 
-parseCellSize :: Parser CellSize
-parseCellSize =
+parseCellWidth :: Parser Width
+parseCellWidth =
   option reader $
     mconcat
-      [ long "size"
-      , short 's'
+      [ long "width"
+      , short 'w'
       , metavar "8|16|32|64"
-      , help "Size of each memory cell"
-      , value Eight
-      , showDefaultWith \case
-          Eight -> "8"
-          Sixteen -> "16"
-          ThirtyTwo -> "32"
-          SixtyFour -> "64"
+      , help "Width of each memory cell"
+      , value W8
+      , showDefaultWith (const "8")
       , hidden
       ]
   where
-    reader = maybeReader \case
-      "8" -> Just Eight
-      "16" -> Just Sixteen
-      "32" -> Just ThirtyTwo
-      "64" -> Just SixtyFour
-      _ -> Nothing
+    reader =
+      auto @Word >>= \case
+        8 -> pure W8
+        16 -> pure W16
+        32 -> pure W32
+        64 -> pure W64
+        _ -> fail "invalid cell width"
+
+parsePointerWidth :: Parser Width
+parsePointerWidth =
+  option reader $
+    mconcat
+      [ long "pointer"
+      , short 'p'
+      , metavar "8|16|32|64"
+      , help "Width of the pointer"
+      , value W64
+      , showDefaultWith (const "64")
+      , hidden
+      ]
+  where
+    reader =
+      auto @Word >>= \case
+        8 -> pure W8
+        16 -> pure W16
+        32 -> pure W32
+        64 -> pure W64
+        _ -> fail "invalid pointer width"
 
 parseRuntimeSettings :: Parser RuntimeSettings
 parseRuntimeSettings = do
@@ -202,7 +218,6 @@ parsePasses =
   option auto $
     mconcat
       [ long "passes"
-      , short 'p'
       , metavar "INT"
       , help "Number of iterated optimization passes"
       , value 3

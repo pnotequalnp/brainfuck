@@ -15,6 +15,7 @@ import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Int (Int16, Int32, Int64, Int8)
+import Data.Proxy (Proxy (..))
 import Data.Version (showVersion)
 import Error.Diagnose (defaultStyle, printDiagnostic)
 import Paths_brainfuck (version)
@@ -33,7 +34,8 @@ main'
     { mode
     , sourceFile
     , outputFile
-    , cellSize
+    , cellWidth
+    , pointerWidth
     , runtimeSettings
     , optimization
     , passes
@@ -47,11 +49,16 @@ main'
     (fp, source) <- case sourceFile of
       Just fp | fp /= "-" -> (fp,) <$> LBS.readFile fp
       _ -> ("<STDIN>",) <$> LBS.getContents
-    case cellSize of
-      Eight -> parse @Int8 @Int fp source >>= run
-      Sixteen -> parse @Int16 @Int fp source >>= run
-      ThirtyTwo -> parse @Int32 @Int fp source >>= run
-      SixtyFour -> parse @Int64 @Int fp source >>= run
+    let run' (_ :: Proxy a) = case cellWidth of
+          W8 -> parse @Int8 @a fp source >>= run
+          W16 -> parse @Int16 @a fp source >>= run
+          W32 -> parse @Int32 @a fp source >>= run
+          W64 -> parse @Int64 @a fp source >>= run
+    case pointerWidth of
+      W8 -> run' (Proxy @Int8)
+      W16 -> run' (Proxy @Int16)
+      W32 -> run' (Proxy @Int32)
+      W64 -> run' (Proxy @Int64)
     where
       parse :: (Num byte, Num addr, Ord byte, Ord addr) => FilePath -> ByteString -> IO [Brainfuck byte addr]
       parse fp src =

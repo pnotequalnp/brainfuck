@@ -57,7 +57,7 @@ import System.IO (Handle)
 
 -- | Compile a brainfuck program to object code
 compile ::
-  (Integral byte, Storable byte, Integral addr) =>
+  (Integral byte, Storable byte, Integral addr, Storable addr) =>
   -- | Runtime settings
   RuntimeSettings ->
   -- | Brainfuck program
@@ -95,7 +95,7 @@ optimize Optimization {contraction, deloopification, offsets} = composeN pass
 
 -- | Interpret in `IO`, reading from and writing to `stdin` and `stdout`
 interpretIO ::
-  (Num byte, Eq byte, Storable byte, Unbox byte) =>
+  (Num byte, Eq byte, Storable byte, Unbox byte, Integral addr) =>
   -- | Input handle
   Handle ->
   -- | Output handle
@@ -103,8 +103,8 @@ interpretIO ::
   -- | Runtime settings
   RuntimeSettings ->
   -- | Brainfuck program
-  [Brainfuck byte Int] ->
-  IO (IOVector byte, Int)
+  [Brainfuck byte addr] ->
+  IO (IOVector byte, addr)
 interpretIO hIn hOut RuntimeSettings {memory, initialPointer, eofBehavior} =
   interpret (handleInput hIn eofBehavior) (handleOutput hOut) (fromIntegral memory) (fromIntegral initialPointer)
 

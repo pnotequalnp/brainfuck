@@ -32,14 +32,14 @@ type Codegen s = IRBuilderT (ModuleBuilderT (ST s))
 -- | Generate an LLVM module from a brainfuck program
 codegen ::
   forall byte addr.
-  (Integral byte, Storable byte, Integral addr) =>
+  (Integral byte, Storable byte, Integral addr, Storable addr) =>
   -- | Runtime settings
   RuntimeSettings ->
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   Module
 codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ buildModuleT "main" do
-  pointer <- lift . newSTRef $ toPtr initialPointer
+  pointer <- lift . newSTRef $ addrLiteral (fromIntegral initialPointer)
   getchar <- extern (mkName "getchar") [] i32
   putchar <- extern (mkName "putchar") [i32] i32
   let getbyte loc = mdo
@@ -73,18 +73,21 @@ codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ b
   _ <- function (mkName "main") [] i32 \_ -> do
     _ <- namedBlock "entry"
     buffer <- alloca (ArrayType memory cellType) Nothing cellWidth `named` "buffer"
-    traverse_ (statement getbyte putbyte literal cellWidth (bufferOffset buffer pointer) pointer) source
+    traverse_ (statement getbyte putbyte literal addrLiteral cellWidth (bufferOffset buffer pointer) pointer) source
     ret (int32 0)
   pure ()
   where
     cellWidth = fromIntegral (sizeOf @byte undefined) * 8
     cellType = IntegerType cellWidth
     literal = ConstantOperand . Int cellWidth . toInteger
+    pointerWidth = fromIntegral (sizeOf @addr undefined) * 8
+    pointerType = IntegerType pointerWidth
+    addrLiteral = ConstantOperand . Int pointerWidth . toInteger
     bufferOffset buffer pointer x = do
       addr <- lift . lift . readSTRef $ pointer
       addr' <- case x of
         0 -> pure addr
-        _ -> addSub toPtr addr x
+        _ -> addSub addrLiteral addr x
       gep buffer [int64 0, addr']
 
 statement ::
@@ -94,7 +97,9 @@ statement ::
   -- | Output codegen
   (Operand -> Codegen s ()) ->
   -- | Construct a literal value
-  (Int -> Operand) ->
+  (byte -> Operand) ->
+  -- | Construct a literal address
+  (addr -> Operand) ->
   -- | Width of each cell
   Word32 ->
   -- | Get address of cell in buffer at an offset
@@ -104,26 +109,26 @@ statement ::
   -- | Brainfuck instruction
   Brainfuck byte addr ->
   Codegen s ()
-statement input output literal cellWidth bufferOffset pointer = cata \case
+statement input output literal addrLiteral cellWidth bufferOffset pointer = cata \case
   AddF amount offset -> do
     loc <- bufferOffset offset
     x <- load loc cellWidth
-    x' <- addSub toByte x amount
+    x' <- addSub literal x amount
     store loc cellWidth x'
   SetF value offset -> do
     loc <- bufferOffset offset
-    store loc cellWidth (toByte value)
+    store loc cellWidth (literal value)
   MulF value cell offset -> do
     src <- bufferOffset offset
     dest <- bufferOffset (offset + cell)
     x <- load src cellWidth
-    y <- mul x (toByte value)
+    y <- mul x (literal value)
     z <- load dest cellWidth
     z' <- add y z
     store dest cellWidth z'
   ShiftF amount -> do
     addr <- getPointer
-    addr' <- addSub toPtr addr amount
+    addr' <- addSub addrLiteral addr amount
     putPointer addr'
   InputF offset -> do
     loc <- bufferOffset offset
@@ -156,7 +161,6 @@ statement input output literal cellWidth bufferOffset pointer = cata \case
     putPointer loopPtr
   NopF -> pure ()
   where
-    toByte = literal . fromIntegral
     getPointer = lift . lift $ readSTRef pointer
     putPointer = lift . lift . writeSTRef pointer
 
@@ -166,9 +170,6 @@ namedBlock name = do
   pure name'
   where
     name' = Name name
-
-toPtr :: Integral a => a -> Operand
-toPtr = int64 . toInteger
 
 addSub :: forall a m. (MonadIRBuilder m, Num a, Ord a) => (a -> Operand) -> Operand -> a -> m Operand
 addSub toOp y x
