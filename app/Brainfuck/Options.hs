@@ -24,12 +24,12 @@ module Brainfuck.Options (
 ) where
 
 import Brainfuck (EofBehavior (..), Optimization (..), RuntimeSettings (..))
+import Control.Monad (when)
 import Data.Foldable (asum)
 import Data.Version (showVersion)
 import Data.Word (Word64)
 import Options.Applicative
 import Paths_brainfuck (version)
-import Control.Monad (when)
 
 data Mode
   = Interpret
@@ -239,11 +239,12 @@ parseOptLevel =
       , showDefault
       , hidden
       ]
-  where reader = do
-          x <- auto @Word
-          when (x > 3) do
-            fail "invalid optimization level"
-          pure x
+  where
+    reader = do
+      x <- auto @Word
+      when (x > 3) do
+        fail "invalid optimization level"
+      pure x
 
 parseUnicode :: Parser Bool
 parseUnicode = not <$> switch (long "ascii" <> internal)

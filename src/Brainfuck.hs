@@ -13,6 +13,9 @@ module Brainfuck (
   -- * Parsing
   parse,
 
+  -- * Checks
+  checks,
+
   -- * Optimization
   optimize,
   Optimization (..),
@@ -40,6 +43,7 @@ module Brainfuck (
   showIR,
 ) where
 
+import Brainfuck.Checks (heatsTheBox, memorySize)
 import Brainfuck.Configuration (EofBehavior (..), RuntimeSettings (..))
 import Brainfuck.Interpreter (execute, interpret)
 import Brainfuck.Interpreter.IO (handleInput, handleOutput)
@@ -50,7 +54,10 @@ import Brainfuck.Parser (parse)
 import Brainfuck.Syntax (Brainfuck (..), BrainfuckF (..))
 import Data.Bool (bool)
 import Data.ByteString (ByteString)
+import Data.Foldable (foldl')
+import Data.Maybe (catMaybes)
 import Data.Vector.Unboxed.Mutable (IOVector, Unbox)
+import Error.Diagnose (Diagnostic, addReport, def)
 import Foreign (Storable)
 import Prettyprinter (Doc, Pretty (..), vsep)
 import System.IO (Handle)
@@ -113,3 +120,22 @@ interpretIO hIn hOut RuntimeSettings {memory, initialPointer, eofBehavior} =
 -- | Pretty print brainfuck IR
 showIR :: (Pretty byte, Eq byte, Num byte, Pretty addr, Eq addr, Num addr) => [Brainfuck byte addr] -> Doc ann
 showIR = vsep . fmap pretty
+
+-- | Checks and warnings
+checks ::
+  forall byte addr.
+  Storable addr =>
+  -- | Runtime settings
+  RuntimeSettings ->
+  -- | Brainfuck program
+  [Brainfuck byte addr] ->
+  Maybe (Diagnostic String)
+checks RuntimeSettings {memory} program = case warnings of
+  [] -> Nothing
+  _ -> Just (foldl' addReport def warnings)
+  where
+    warnings =
+      catMaybes
+        [ heatsTheBox program
+        , memorySize @addr memory
+        ]

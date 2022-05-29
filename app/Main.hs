@@ -64,11 +64,13 @@ main'
       parse :: (Num byte, Num addr, Ord byte, Ord addr) => FilePath -> ByteString -> IO [Brainfuck byte addr]
       parse fp src =
         case BF.parse fp src of
+          Left diag -> do emitDiagnostic diag; exitFailure
           Right source -> pure (BF.optimize optimization passes source)
-          Left diag -> do
-            printDiagnostic stderr unicode color 2 defaultStyle diag
-            exitFailure
-      run source =
+      emitDiagnostic = printDiagnostic stderr unicode color 2 defaultStyle
+      run source = do
+        case BF.checks runtimeSettings source of
+          Nothing -> pure ()
+          Just diag -> emitDiagnostic diag
         case mode of
           Interpret -> do
             _ <- BF.interpretIO stdin stdout runtimeSettings source

@@ -36,6 +36,7 @@ library
     import:          base
     exposed-modules:
         Brainfuck
+        Brainfuck.Checks
         Brainfuck.Configuration
         Brainfuck.Interpreter
         Brainfuck.Interpreter.IO
