@@ -38,6 +38,7 @@ main'
     , pointerWidth
     , runtimeSettings
     , optimization
+    , optLevel
     , passes
     , unicode
     , color
@@ -72,9 +73,9 @@ main'
           Interpret -> do
             _ <- BF.interpretIO stdin stdout runtimeSettings source
             pure ()
-          Execute -> BF.jitLLVM (BF.codegen runtimeSettings source)
+          Execute -> BF.jitLLVM optLevel (BF.codegen runtimeSettings source)
           Compile -> do
-            binary <- BF.compile runtimeSettings source
+            binary <- BF.compile runtimeSettings optLevel source
             case outputFile of
               Nothing
                 | Just fp <- sourceFile
@@ -86,7 +87,7 @@ main'
             Nothing -> print (BF.showIR source)
             Just fp -> writeFile fp (show (BF.showIR source))
           DumpLLVM -> do
-            llvm <- BF.showLLVM (BF.codegen runtimeSettings source)
+            llvm <- BF.showLLVM optLevel (BF.codegen runtimeSettings source)
             case outputFile of
               Nothing -> BS.putStr llvm
               Just fp -> BS.writeFile fp llvm

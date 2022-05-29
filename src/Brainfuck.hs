@@ -60,10 +60,12 @@ compile ::
   (Integral byte, Storable byte, Integral addr, Storable addr) =>
   -- | Runtime settings
   RuntimeSettings ->
+  -- | LLVM optimization level
+  Word ->
   -- | Brainfuck program
   [Brainfuck byte addr] ->
   IO ByteString
-compile memory source = compileLLVM (codegen memory source)
+compile settings optLevel source = compileLLVM optLevel (codegen settings source)
 
 -- | Optimization options
 data Optimization = Optimization

@@ -24,20 +24,38 @@ import LLVM.PassManager (PassSetSpec (..), defaultCuratedPassSetSpec, runPassMan
 import LLVM.Target (withHostTargetMachineDefault)
 
 -- | Compile an LLVM module to object code
-compileLLVM :: AST.Module -> IO ByteString
-compileLLVM m = withContext \ctx ->
+compileLLVM ::
+  -- | LLVM optimization level
+  Word ->
+  -- | LLVM AST
+  AST.Module ->
+  IO ByteString
+compileLLVM l m = withContext \ctx ->
   withModuleFromAST ctx m \m' ->
     withHostTargetMachineDefault \tgt -> do
-      _ <- optimizeLLVM m'
+      _ <- optimizeLLVM l m'
       moduleObject tgt m'
 
 -- | Pretty print an LLVM module
-showLLVM :: AST.Module -> IO ByteString
-showLLVM m = withContext \ctx -> withModuleFromAST ctx m moduleLLVMAssembly
+showLLVM ::
+  -- | LLVM optimization level
+  Word ->
+  -- | LLVM AST
+  AST.Module ->
+  IO ByteString
+showLLVM l m = withContext \ctx ->
+  withModuleFromAST ctx m \m' -> do
+    _ <- optimizeLLVM l m'
+    moduleLLVMAssembly m'
 
 -- | Execute an LLVM module with JIT compilation
-jitLLVM :: AST.Module -> IO ()
-jitLLVM m = withContext \ctx ->
+jitLLVM ::
+  -- | LLVM optimization level
+  Word ->
+  -- | LLVM AST
+  AST.Module ->
+  IO ()
+jitLLVM l m = withContext \ctx ->
   withModuleFromAST ctx m \m' ->
     withHostTargetMachineDefault \tgt ->
       JIT.withExecutionSession \es -> do
@@ -45,7 +63,7 @@ jitLLVM m = withContext \ctx ->
         JIT.withObjectLinkingLayer es (\_ -> readIORef res) \linkingLayer -> do
           JIT.withIRCompileLayer linkingLayer tgt \compileLayer ->
             JIT.withModuleKey es \key -> do
-              _ <- optimizeLLVM m'
+              _ <- optimizeLLVM l m'
               JIT.withSymbolResolver es (SymbolResolver (resolve compileLayer)) \resolver -> do
                 writeIORef res resolver
                 JIT.withModule compileLayer key m' do
@@ -66,10 +84,10 @@ jitLLVM m = withContext \ctx ->
         Right sym' -> pure (Right sym')
 
 -- | Optimize an LLVM module
-optimizeLLVM :: Module -> IO Bool
-optimizeLLVM m = withPassManager passes \pm -> runPassManager pm m
+optimizeLLVM :: Word -> Module -> IO Bool
+optimizeLLVM l m = withPassManager passes \pm -> runPassManager pm m
   where
-    passes = defaultCuratedPassSetSpec {optLevel = Just 0}
+    passes = defaultCuratedPassSetSpec {optLevel = Just l}
 
 foreign import ccall "dynamic"
   fromJit :: FunPtr (IO Word32) -> IO Word32

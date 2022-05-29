@@ -29,6 +29,7 @@ import Data.Version (showVersion)
 import Data.Word (Word64)
 import Options.Applicative
 import Paths_brainfuck (version)
+import Control.Monad (when)
 
 data Mode
   = Interpret
@@ -46,6 +47,7 @@ data Options = Options
   , runtimeSettings :: RuntimeSettings
   , optimization :: Optimization
   , passes :: Word
+  , optLevel :: Word
   , unicode :: Bool
   , color :: Bool
   , outputFile :: Maybe FilePath
@@ -71,6 +73,7 @@ parseOptions =
     <*> parseRuntimeSettings
     <*> parseOptimization
     <*> parsePasses
+    <*> parseOptLevel
     <*> parseUnicode
     <*> parseColor
     <*> parseOutput
@@ -224,6 +227,23 @@ parsePasses =
       , showDefault
       , hidden
       ]
+
+parseOptLevel :: Parser Word
+parseOptLevel =
+  option reader $
+    mconcat
+      [ long "optlevel"
+      , metavar "0-3"
+      , help "LLVM optimization level"
+      , value 0
+      , showDefault
+      , hidden
+      ]
+  where reader = do
+          x <- auto @Word
+          when (x > 3) do
+            fail "invalid optimization level"
+          pure x
 
 parseUnicode :: Parser Bool
 parseUnicode = not <$> switch (long "ascii" <> internal)
