@@ -13,7 +13,7 @@ import Control.Applicative (optional)
 import Data.ByteString (ByteString)
 import Data.IORef (newIORef, readIORef, writeIORef)
 import Foreign (FunPtr, Word32, castPtrToFunPtr, wordPtrToPtr)
-import LLVM (Module, moduleLLVMAssembly, moduleObject, withModuleFromAST)
+import LLVM (Module, moduleLLVMAssembly, moduleObject, moduleTargetAssembly, withModuleFromAST)
 import LLVM.AST qualified as AST
 import LLVM.Context (withContext)
 import LLVM.Linking (getSymbolAddressInProcess, loadLibraryPermanently)
@@ -47,6 +47,19 @@ showLLVM l m = withContext \ctx ->
   withModuleFromAST ctx m \m' -> do
     _ <- optimizeLLVM l m'
     moduleLLVMAssembly m'
+
+-- | Pretty print an LLVM module
+showASM ::
+  -- | LLVM optimization level
+  Word ->
+  -- | LLVM AST
+  AST.Module ->
+  IO ByteString
+showASM l m = withContext \ctx ->
+  withModuleFromAST ctx m \m' ->
+    withHostTargetMachineDefault \tgt -> do
+      _ <- optimizeLLVM l m'
+      moduleTargetAssembly tgt m'
 
 -- | Execute an LLVM module with JIT compilation
 jitLLVM ::

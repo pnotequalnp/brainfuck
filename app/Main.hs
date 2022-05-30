@@ -93,3 +93,8 @@ main'
             case outputFile of
               Nothing -> BS.putStr llvm
               Just fp -> BS.writeFile fp llvm
+          DumpASM -> do
+            asm <- BF.showASM optLevel (BF.codegen runtimeSettings source)
+            case outputFile of
+              Nothing -> BS.putStr asm
+              Just fp -> BS.writeFile fp asm

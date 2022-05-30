@@ -37,6 +37,7 @@ data Mode
   | Compile
   | DumpIR
   | DumpLLVM
+  | DumpASM
 
 data Width = W8 | W16 | W32 | W64
 
@@ -87,6 +88,7 @@ parseMode =
     , flag' Compile (long "compile" <> short 'c' <> help "Compile source file")
     , flag' DumpIR (long "dump-ir" <> help "Output IR from source file" <> hidden)
     , flag' DumpLLVM (long "dump-llvm" <> help "Output LLVM IR from source file" <> hidden)
+    , flag' DumpASM (long "dump-asm" <> help "Output assembly from source file" <> hidden)
     , pure Execute
     ]
 
@@ -199,8 +201,8 @@ parseOutput = optional (strOption (short 'o' <> metavar "OUTPUT_FILE" <> hidden)
 
 parseOptimization :: Parser Optimization
 parseOptimization =
-  flag' defOpts (short 'O' <> help "Enable all optimizations")
-    <|> parseOptimizations
+  flag' () (long "no-opt" <> help "Disable all optimizations") *> parseOptimizationFlags
+    <|> pure defOpts
   where
     defOpts =
       Optimization
@@ -209,8 +211,8 @@ parseOptimization =
         , offsets = True
         }
 
-parseOptimizations :: Parser Optimization
-parseOptimizations =
+parseOptimizationFlags :: Parser Optimization
+parseOptimizationFlags =
   Optimization
     <$> switch (long "contract" <> help "Contract `+`/`-` and `<`/`>` chains to single instructions" <> hidden)
     <*> switch (long "deloopify" <> help "Reduce `[-]`-like loops to single instructions" <> hidden)
@@ -235,7 +237,7 @@ parseOptLevel =
       [ long "optlevel"
       , metavar "0-3"
       , help "LLVM optimization level"
-      , value 0
+      , value 3
       , showDefault
       , hidden
       ]

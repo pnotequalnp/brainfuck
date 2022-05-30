@@ -39,15 +39,16 @@ module Brainfuck (
   execute,
 
   -- * Pretty Printing
-  showLLVM,
   showIR,
+  showLLVM,
+  showASM,
 ) where
 
 import Brainfuck.Checks (heatsTheBox, memorySize)
 import Brainfuck.Configuration (EofBehavior (..), RuntimeSettings (..))
 import Brainfuck.Interpreter (execute, interpret)
 import Brainfuck.Interpreter.IO (handleInput, handleOutput)
-import Brainfuck.LLVM (compileLLVM, jitLLVM, optimizeLLVM, showLLVM)
+import Brainfuck.LLVM (compileLLVM, jitLLVM, optimizeLLVM, showASM, showLLVM)
 import Brainfuck.LLVM.Codegen (codegen)
 import Brainfuck.Optimizer (contract, deloopify, offsetInstructions)
 import Brainfuck.Parser (parse)

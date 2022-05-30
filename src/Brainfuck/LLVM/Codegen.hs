@@ -22,9 +22,10 @@ import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import Data.Word (Word32)
 import Foreign (Storable (..))
 import LLVM.AST (Module, Name (..), Operand (..), mkName)
+import LLVM.AST.AddrSpace (AddrSpace (..))
 import LLVM.AST.Constant (Constant (Int))
 import LLVM.AST.IntegerPredicate qualified as Pred
-import LLVM.AST.Type (Type (..), i32)
+import LLVM.AST.Type (Type (..), i32, i64)
 import LLVM.IRBuilder
 
 type Codegen s = IRBuilderT (ModuleBuilderT (ST s))
@@ -42,6 +43,7 @@ codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ b
   pointer <- lift . newSTRef $ addrLiteral (fromIntegral initialPointer)
   getchar <- extern (mkName "getchar") [] i32
   putchar <- extern (mkName "putchar") [i32] i32
+  memset <- extern (mkName "memset") [cellPointer, i32, i64] cellPointer
   let getbyte loc = mdo
         br entry
         entry <- block
@@ -73,12 +75,16 @@ codegen RuntimeSettings {memory, initialPointer, eofBehavior} source = runST $ b
   _ <- function (mkName "main") [] i32 \_ -> do
     _ <- namedBlock "entry"
     buffer <- alloca (ArrayType memory cellType) Nothing cellWidth `named` "buffer"
+    let bufferBytes = fromIntegral cellBytes * fromIntegral memory
+    _ <- call memset [(buffer, []), (int32 0, []), (int64 bufferBytes, [])]
     traverse_ (statement getbyte putbyte literal addrLiteral cellWidth (bufferOffset buffer pointer) pointer) source
     ret (int32 0)
   pure ()
   where
-    cellWidth = fromIntegral (sizeOf @byte undefined) * 8
+    cellBytes = fromIntegral (sizeOf @byte undefined)
+    cellWidth = cellBytes * 8
     cellType = IntegerType cellWidth
+    cellPointer = PointerType cellType (AddrSpace 0)
     literal = ConstantOperand . Int cellWidth . toInteger
     pointerWidth = fromIntegral (sizeOf @addr undefined) * 8
     pointerType = IntegerType pointerWidth
