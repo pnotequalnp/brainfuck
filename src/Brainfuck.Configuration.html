@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{- |
+ Module      : Brainfuck.Configuration
+ Description : Brainfuck Runtime Settings
+ Copyright   : Kevin Mullins 2022
+ License     : ISC
+ Maintainer  : kevin@pnotequalnp.com
+-}</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Brainfuck.Configuration</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-9"></span><span>  </span><span class="annot"><a href="Brainfuck.Configuration.html#RuntimeSettings"><span class="hs-identifier">RuntimeSettings</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-10"></span><span>  </span><span class="annot"><a href="Brainfuck.Configuration.html#EofBehavior"><span class="hs-identifier">EofBehavior</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-11"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Data.Word</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Word64</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- | Settings for brainfuck runtime behavior</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">data</span><span> </span><span id="RuntimeSettings"><span class="annot"><a href="Brainfuck.Configuration.html#RuntimeSettings"><span class="hs-identifier hs-var">RuntimeSettings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RuntimeSettings"><span class="annot"><a href="Brainfuck.Configuration.html#RuntimeSettings"><span class="hs-identifier hs-var">RuntimeSettings</span></a></span></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="hs-comment">-- | Number of memory cells available</span><span>
+</span><span id="line-18"></span><span>    </span><span id="memory"><span class="annot"><span class="annottext">RuntimeSettings -&gt; Word64
+</span><a href="Brainfuck.Configuration.html#memory"><span class="hs-identifier hs-var hs-var">memory</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Word64</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- | Initial location of the pointer</span><span>
+</span><span id="line-20"></span><span>    </span><span id="initialPointer"><span class="annot"><span class="annottext">RuntimeSettings -&gt; Word64
+</span><a href="Brainfuck.Configuration.html#initialPointer"><span class="hs-identifier hs-var hs-var">initialPointer</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Word64</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- | Behavior when the input stream has reached EOF</span><span>
+</span><span id="line-22"></span><span>    </span><span id="eofBehavior"><span class="annot"><span class="annottext">RuntimeSettings -&gt; EofBehavior
+</span><a href="Brainfuck.Configuration.html#eofBehavior"><span class="hs-identifier hs-var hs-var">eofBehavior</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Brainfuck.Configuration.html#EofBehavior"><span class="hs-identifier hs-type">EofBehavior</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- | Action to take when the input stream reaches EOF</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">data</span><span> </span><span id="EofBehavior"><span class="annot"><a href="Brainfuck.Configuration.html#EofBehavior"><span class="hs-identifier hs-var">EofBehavior</span></a></span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-comment">-- | Return @0@</span><span>
+</span><span id="line-28"></span><span>    </span><span id="Zero"><span class="annot"><a href="Brainfuck.Configuration.html#Zero"><span class="hs-identifier hs-var">Zero</span></a></span></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-comment">-- | Leave the cell unchanged</span><span>
+</span><span id="line-30"></span><span>    </span><span id="Unchanged"><span class="annot"><a href="Brainfuck.Configuration.html#Unchanged"><span class="hs-identifier hs-var">Unchanged</span></a></span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="hs-comment">-- | Return @-1@</span><span>
+</span><span id="line-32"></span><span>    </span><span id="NegativeOne"><span class="annot"><a href="Brainfuck.Configuration.html#NegativeOne"><span class="hs-identifier hs-var">NegativeOne</span></a></span></span><span>
+</span><span id="line-33"></span></pre></body></html>

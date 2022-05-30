@@ -1,0 +1,522 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="%24con2tag_JSJ9NrSJvTaCX2o2sbpY4Z"></span><span class="hs-comment">{- |
+ Module      : Brainfuck.Parser
+ Description : Brainfuck Parser
+ Copyright   : Kevin Mullins 2022
+ License     : ISC
+ Maintainer  : kevin@pnotequalnp.com
+-}</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Brainfuck.Parser</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-9"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Parsing</span></span><span>
+</span><span id="line-10"></span><span>  </span><span class="annot"><a href="Brainfuck.Parser.html#parse"><span class="hs-identifier">Brainfuck.Parser.parse</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-11"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Brainfuck.Syntax.html"><span class="hs-identifier">Brainfuck.Syntax</span></a></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier">Data.ByteString.Lazy</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier">ByteString</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier">Data.ByteString.Lazy.Char8</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier">unpack</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Data.Foldable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">toList</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Data.List.NonEmpty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">NonEmpty</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Data.Word</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Word8</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">Error.Diagnose</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">Diagnostic</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">Marker</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">Position</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">addFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">addReport</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/0srilvd2r4zf392rbwwsmcfy1jgwqa4z-data-default-class-0.1.2.0-doc/share/doc/data-default-class-0.1.2.0/html/src"><span class="hs-identifier">def</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier">err</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier">Text.Megaparsec</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier">Text.Megaparsec.Byte</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier">char</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">data</span><span> </span><span id="MismatchedBracket"><span class="annot"><a href="Brainfuck.Parser.html#MismatchedBracket"><span class="hs-identifier hs-var">MismatchedBracket</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="UnmatchedOpen"><span class="annot"><a href="Brainfuck.Parser.html#UnmatchedOpen"><span class="hs-identifier hs-var">UnmatchedOpen</span></a></span></span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">SourcePos</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="UnmatchedClose"><span class="annot"><a href="Brainfuck.Parser.html#UnmatchedClose"><span class="hs-identifier hs-var">UnmatchedClose</span></a></span></span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">SourcePos</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679122934"><span id="local-6989586621679122936"><span class="annot"><span class="annottext">MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+(MismatchedBracket -&gt; MismatchedBracket -&gt; Bool)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; Bool)
+-&gt; Eq MismatchedBracket
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+$c/= :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+== :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+$c== :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679122918"><span id="local-6989586621679122920"><span id="local-6989586621679122922"><span id="local-6989586621679122924"><span id="local-6989586621679122926"><span id="local-6989586621679122928"><span id="local-6989586621679122930"><span class="annot"><span class="annottext">Eq MismatchedBracket
+Eq MismatchedBracket
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; Ordering)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; Bool)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; Bool)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; Bool)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; Bool)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket)
+-&gt; (MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket)
+-&gt; Ord MismatchedBracket
+MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+MismatchedBracket -&gt; MismatchedBracket -&gt; Ordering
+MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket
+$cmin :: MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket
+max :: MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket
+$cmax :: MismatchedBracket -&gt; MismatchedBracket -&gt; MismatchedBracket
+&gt;= :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+$c&gt;= :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+&gt; :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+$c&gt; :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+&lt;= :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+$c&lt;= :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+&lt; :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+$c&lt; :: MismatchedBracket -&gt; MismatchedBracket -&gt; Bool
+compare :: MismatchedBracket -&gt; MismatchedBracket -&gt; Ordering
+$ccompare :: MismatchedBracket -&gt; MismatchedBracket -&gt; Ordering
+$cp1Ord :: Eq MismatchedBracket
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></a></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679122911"><span id="local-6989586621679122913"><span id="local-6989586621679122915"><span class="annot"><span class="annottext">Int -&gt; MismatchedBracket -&gt; ShowS
+[MismatchedBracket] -&gt; ShowS
+MismatchedBracket -&gt; String
+(Int -&gt; MismatchedBracket -&gt; ShowS)
+-&gt; (MismatchedBracket -&gt; String)
+-&gt; ([MismatchedBracket] -&gt; ShowS)
+-&gt; Show MismatchedBracket
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [MismatchedBracket] -&gt; ShowS
+$cshowList :: [MismatchedBracket] -&gt; ShowS
+show :: MismatchedBracket -&gt; String
+$cshow :: MismatchedBracket -&gt; String
+showsPrec :: Int -&gt; MismatchedBracket -&gt; ShowS
+$cshowsPrec :: Int -&gt; MismatchedBracket -&gt; ShowS
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">type</span><span> </span><span id="Parser"><span class="annot"><a href="Brainfuck.Parser.html#Parser"><span class="hs-identifier hs-var">Parser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">Parsec</span></a></span><span> </span><span class="annot"><a href="Brainfuck.Parser.html#MismatchedBracket"><span class="hs-identifier hs-type">MismatchedBracket</span></a></span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier hs-type">ByteString</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- | Parse a brainfuck program from a bytestring</span><span>
+</span><span id="line-31"></span><span id="local-6989586621679122908"><span id="local-6989586621679122909"><span class="annot"><a href="Brainfuck.Parser.html#parse"><span class="hs-identifier hs-type">parse</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122909"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122909"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122908"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122908"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-comment">-- | Source filepath (for error messages)</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">FilePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-comment">-- | Source</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier hs-type">ByteString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Either</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-type">Diagnostic</span></a></span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">String</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Brainfuck.Syntax.html#Brainfuck"><span class="hs-identifier hs-type">Brainfuck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122909"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122908"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-38"></span><span id="parse"><span class="annot"><span class="annottext">parse :: String
+-&gt; ByteString -&gt; Either (Diagnostic String) [Brainfuck byte addr]
+</span><a href="Brainfuck.Parser.html#parse"><span class="hs-identifier hs-var hs-var">parse</span></a></span></span><span> </span><span id="local-6989586621679122906"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679122906"><span class="hs-identifier hs-var">fp</span></a></span></span><span> </span><span id="local-6989586621679122905"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679122905"><span class="hs-identifier hs-var">source</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Parsec MismatchedBracket ByteString [Brainfuck byte addr]
+-&gt; String
+-&gt; ByteString
+-&gt; Either
+     (ParseErrorBundle ByteString MismatchedBracket)
+     [Brainfuck byte addr]
+forall e s a.
+Parsec e s a -&gt; String -&gt; s -&gt; Either (ParseErrorBundle s e) a
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">Text.Megaparsec.parse</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec MismatchedBracket ByteString [Brainfuck byte addr]
+forall byte addr.
+(Eq byte, Eq addr, Num byte, Num addr) =&gt;
+Parser [Brainfuck byte addr]
+</span><a href="Brainfuck.Parser.html#brainfuck"><span class="hs-identifier hs-var">brainfuck</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679122906"><span class="hs-identifier hs-var">fp</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679122905"><span class="hs-identifier hs-var">source</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Right</span></a></span><span> </span><span id="local-6989586621679122902"><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679122902"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Brainfuck byte addr]
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall a b. b -&gt; Either a b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Right</span></a></span><span> </span><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679122902"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Left</span></a></span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">ParseErrorBundle</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">bundleErrors :: forall s e. ParseErrorBundle s e -&gt; NonEmpty (ParseError s e)
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">bundleErrors</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">FancyError</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679122898"><span class="annot"><span class="annottext">Set (ErrorFancy MismatchedBracket)
+</span><a href="#local-6989586621679122898"><span class="hs-identifier hs-var">errs</span></a></span></span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-type">:|</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">ErrorCustom</span></a></span><span> </span><span id="local-6989586621679122895"><span class="annot"><span class="annottext">MismatchedBracket
+</span><a href="#local-6989586621679122895"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Set (ErrorFancy MismatchedBracket)
+-&gt; [ErrorFancy MismatchedBracket]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; [a]
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">toList</span></a></span><span> </span><span class="annot"><span class="annottext">Set (ErrorFancy MismatchedBracket)
+</span><a href="#local-6989586621679122898"><span class="hs-identifier hs-var">errs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><span class="annottext">Diagnostic String
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall a b. a -&gt; Either a b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Left</span></a></span><span> </span><span class="annot"><span class="annottext">(Diagnostic String
+ -&gt; Either (Diagnostic String) [Brainfuck byte addr])
+-&gt; (Diagnostic String -&gt; Diagnostic String)
+-&gt; Diagnostic String
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic String -&gt; Diagnostic String
+forall msg. Diagnostic msg -&gt; Diagnostic msg
+</span><a href="#local-6989586621679122893"><span class="hs-identifier hs-var">addSource</span></a></span><span> </span><span class="annot"><span class="annottext">(Diagnostic String
+ -&gt; Either (Diagnostic String) [Brainfuck byte addr])
+-&gt; Diagnostic String
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic String -&gt; Report String -&gt; Diagnostic String
+forall msg. Diagnostic msg -&gt; Report msg -&gt; Diagnostic msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">addReport</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic String
+forall a. Default a =&gt; a
+</span><a href="../file:///nix/store/0srilvd2r4zf392rbwwsmcfy1jgwqa4z-data-default-class-0.1.2.0-doc/share/doc/data-default-class-0.1.2.0/html/src"><span class="hs-identifier hs-var">def</span></a></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">MismatchedBracket
+</span><a href="#local-6989586621679122895"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-43"></span><span>        </span><span class="annot"><a href="Brainfuck.Parser.html#UnmatchedOpen"><span class="hs-identifier hs-type">UnmatchedOpen</span></a></span><span> </span><span id="local-6989586621679122892"><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122892"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-44"></span><span>          </span><span class="annot"><span class="annottext">Maybe String
+-&gt; String
+-&gt; [(Position, Marker String)]
+-&gt; [String]
+-&gt; Report String
+forall msg.
+Maybe msg -&gt; msg -&gt; [(Position, Marker msg)] -&gt; [msg] -&gt; Report msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe String
+forall a. Maybe a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Nothing</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unmatched open bracket&quot;</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SourcePos -&gt; Position
+</span><a href="#local-6989586621679122891"><span class="hs-identifier hs-var">posToPosition</span></a></span><span> </span><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122892"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; Marker String
+forall msg. msg -&gt; Marker msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">This</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unmatched bracket&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-45"></span><span>        </span><span class="annot"><a href="Brainfuck.Parser.html#UnmatchedClose"><span class="hs-identifier hs-type">UnmatchedClose</span></a></span><span> </span><span id="local-6989586621679122889"><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122889"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-46"></span><span>          </span><span class="annot"><span class="annottext">Maybe String
+-&gt; String
+-&gt; [(Position, Marker String)]
+-&gt; [String]
+-&gt; Report String
+forall msg.
+Maybe msg -&gt; msg -&gt; [(Position, Marker msg)] -&gt; [msg] -&gt; Report msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe String
+forall a. Maybe a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Nothing</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unmatched closing bracket&quot;</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SourcePos -&gt; Position
+</span><a href="#local-6989586621679122891"><span class="hs-identifier hs-var">posToPosition</span></a></span><span> </span><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122889"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; Marker String
+forall msg. msg -&gt; Marker msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">This</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unmatched bracket&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Left</span></a></span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">ParseErrorBundle</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">bundlePosState :: forall s e. ParseErrorBundle s e -&gt; PosState s
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">bundlePosState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">PosState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679122886"><span class="annot"><span class="annottext">SourcePos
+pstateSourcePos :: forall s. PosState s -&gt; SourcePos
+pstateSourcePos :: SourcePos
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var hs-var">pstateSourcePos</span></a></span></span><span class="hs-special">}</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><span class="annottext">Diagnostic String
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall a b. a -&gt; Either a b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Left</span></a></span><span> </span><span class="annot"><span class="annottext">(Diagnostic String
+ -&gt; Either (Diagnostic String) [Brainfuck byte addr])
+-&gt; (Report String -&gt; Diagnostic String)
+-&gt; Report String
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic String -&gt; Diagnostic String
+forall msg. Diagnostic msg -&gt; Diagnostic msg
+</span><a href="#local-6989586621679122893"><span class="hs-identifier hs-var">addSource</span></a></span><span> </span><span class="annot"><span class="annottext">(Diagnostic String -&gt; Diagnostic String)
+-&gt; (Report String -&gt; Diagnostic String)
+-&gt; Report String
+-&gt; Diagnostic String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic String -&gt; Report String -&gt; Diagnostic String
+forall msg. Diagnostic msg -&gt; Report msg -&gt; Diagnostic msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">addReport</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic String
+forall a. Default a =&gt; a
+</span><a href="../file:///nix/store/0srilvd2r4zf392rbwwsmcfy1jgwqa4z-data-default-class-0.1.2.0-doc/share/doc/data-default-class-0.1.2.0/html/src"><span class="hs-identifier hs-var">def</span></a></span><span> </span><span class="annot"><span class="annottext">(Report String -&gt; Either (Diagnostic String) [Brainfuck byte addr])
+-&gt; Report String
+-&gt; Either (Diagnostic String) [Brainfuck byte addr]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">$</span></a></span><span>
+</span><span id="line-49"></span><span>      </span><span class="annot"><span class="annottext">Maybe String
+-&gt; String
+-&gt; [(Position, Marker String)]
+-&gt; [String]
+-&gt; Report String
+forall msg.
+Maybe msg -&gt; msg -&gt; [(Position, Marker msg)] -&gt; [msg] -&gt; Report msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">err</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe String
+forall a. Maybe a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Nothing</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;unknown parse error&quot;</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">SourcePos -&gt; Position
+</span><a href="#local-6989586621679122891"><span class="hs-identifier hs-var">posToPosition</span></a></span><span> </span><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122886"><span class="hs-identifier hs-var">pstateSourcePos</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String -&gt; Marker String
+forall msg. msg -&gt; Marker msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">This</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;parse error&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-51"></span><span>    </span><span id="local-6989586621679122893"><span class="annot"><span class="annottext">addSource :: Diagnostic msg -&gt; Diagnostic msg
+</span><a href="#local-6989586621679122893"><span class="hs-identifier hs-var hs-var">addSource</span></a></span></span><span> </span><span id="local-6989586621679122884"><span class="annot"><span class="annottext">Diagnostic msg
+</span><a href="#local-6989586621679122884"><span class="hs-identifier hs-var">diag</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Diagnostic msg -&gt; String -&gt; String -&gt; Diagnostic msg
+forall msg. Diagnostic msg -&gt; String -&gt; String -&gt; Diagnostic msg
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">addFile</span></a></span><span> </span><span class="annot"><span class="annottext">Diagnostic msg
+</span><a href="#local-6989586621679122884"><span class="hs-identifier hs-var">diag</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679122906"><span class="hs-identifier hs-var">fp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier hs-var">unpack</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679122905"><span class="hs-identifier hs-var">source</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>    </span><span id="local-6989586621679122891"><span class="annot"><span class="annottext">posToPosition :: SourcePos -&gt; Position
+</span><a href="#local-6989586621679122891"><span class="hs-identifier hs-var hs-var">posToPosition</span></a></span></span><span> </span><span class="annot"><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-type">SourcePos</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679122882"><span class="annot"><span class="annottext">String
+sourceName :: SourcePos -&gt; String
+sourceName :: String
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var hs-var">sourceName</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679122880"><span class="annot"><span class="annottext">Pos
+sourceLine :: SourcePos -&gt; Pos
+sourceLine :: Pos
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var hs-var">sourceLine</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679122878"><span class="annot"><span class="annottext">Pos
+sourceColumn :: SourcePos -&gt; Pos
+sourceColumn :: Pos
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var hs-var">sourceColumn</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-53"></span><span>      </span><span class="annot"><span class="annottext">Position :: (Int, Int) -&gt; (Int, Int) -&gt; String -&gt; Position
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-type">Position</span></a></span><span>
+</span><span id="line-54"></span><span>        </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">file :: String
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679122882"><span class="hs-identifier hs-var">sourceName</span></a></span><span>
+</span><span id="line-55"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">begin :: (Int, Int)
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">begin</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pos -&gt; Int
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">unPos</span></a></span><span> </span><span class="annot"><span class="annottext">Pos
+</span><a href="#local-6989586621679122880"><span class="hs-identifier hs-var">sourceLine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Pos -&gt; Int
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">unPos</span></a></span><span> </span><span class="annot"><span class="annottext">Pos
+</span><a href="#local-6989586621679122878"><span class="hs-identifier hs-var">sourceColumn</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">end :: (Int, Int)
+</span><a href="../file:///nix/store/h87y3s04wdc61sy2pxkxhsl0wj20xq4g-diagnose-2.0.0-doc/share/doc/diagnose-2.0.0/html/src"><span class="hs-identifier hs-var">end</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pos -&gt; Int
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">unPos</span></a></span><span> </span><span class="annot"><span class="annottext">Pos
+</span><a href="#local-6989586621679122880"><span class="hs-identifier hs-var">sourceLine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Pos -&gt; Int
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">unPos</span></a></span><span> </span><span class="annot"><span class="annottext">Pos
+</span><a href="#local-6989586621679122878"><span class="hs-identifier hs-var">sourceColumn</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>        </span><span class="hs-special">}</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span id="local-6989586621679123034"><span id="local-6989586621679123035"><span class="annot"><a href="Brainfuck.Parser.html#brainfuck"><span class="hs-identifier hs-type">brainfuck</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123035"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123034"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123035"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123034"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Brainfuck.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Brainfuck.Syntax.html#Brainfuck"><span class="hs-identifier hs-type">Brainfuck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123035"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123034"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-60"></span><span id="brainfuck"><span class="annot"><span class="annottext">brainfuck :: Parser [Brainfuck byte addr]
+</span><a href="Brainfuck.Parser.html#brainfuck"><span class="hs-identifier hs-var hs-var">brainfuck</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">ByteString
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser ByteString
+</span><a href="Brainfuck.Parser.html#comment"><span class="hs-identifier hs-var">comment</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621679122869"><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679122869"><span class="hs-identifier hs-var">stmts</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity (Brainfuck byte addr)
+-&gt; Parser [Brainfuck byte addr]
+forall (m :: * -&gt; *) a. MonadPlus m =&gt; m a -&gt; m [a]
+</span><a href="../file:///nix/store/b6vjmp2vmd13wznv53rf3n3y4rshfwar-parser-combinators-1.3.0-doc/share/doc/parser-combinators-1.3.0/html/src"><span class="hs-identifier hs-var">many</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity (Brainfuck byte addr)
+forall byte addr.
+(Eq byte, Eq addr, Num byte, Num addr) =&gt;
+Parser (Brainfuck byte addr)
+</span><a href="Brainfuck.Parser.html#statement"><span class="hs-identifier hs-var">statement</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity ()
+forall e s (m :: * -&gt; *). MonadParsec e s m =&gt; m ()
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">eof</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity ()
+-&gt; ParsecT MismatchedBracket ByteString Identity ()
+-&gt; ParsecT MismatchedBracket ByteString Identity ()
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;|&gt;</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>    </span><span id="local-6989586621679122864"><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122864"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity SourcePos
+forall s e (m :: * -&gt; *).
+(TraversableStream s, MonadParsec e s m) =&gt;
+m SourcePos
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">getSourcePos</span></a></span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><span class="annottext">MismatchedBracket
+-&gt; ParsecT MismatchedBracket ByteString Identity ()
+forall e s (m :: * -&gt; *) a. MonadParsec e s m =&gt; e -&gt; m a
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">customFailure</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SourcePos -&gt; MismatchedBracket
+</span><a href="Brainfuck.Parser.html#UnmatchedClose"><span class="hs-identifier hs-var">UnmatchedClose</span></a></span><span> </span><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122864"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><span class="annottext">[Brainfuck byte addr] -&gt; Parser [Brainfuck byte addr]
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679122869"><span class="hs-identifier hs-var">stmts</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span id="local-6989586621679122990"><span id="local-6989586621679122991"><span class="annot"><a href="Brainfuck.Parser.html#statement"><span class="hs-identifier hs-type">statement</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122991"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122990"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122991"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122990"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Brainfuck.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Brainfuck.Syntax.html#Brainfuck"><span class="hs-identifier hs-type">Brainfuck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122991"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679122990"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-69"></span><span id="statement"><span class="annot"><span class="annottext">statement :: Parser (Brainfuck byte addr)
+</span><a href="Brainfuck.Parser.html#statement"><span class="hs-identifier hs-var hs-var">statement</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><span class="annottext">[Parser (Brainfuck byte addr)] -&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) (m :: * -&gt; *) a.
+(Foldable f, Alternative m) =&gt;
+f (m a) -&gt; m a
+</span><a href="../file:///nix/store/b6vjmp2vmd13wznv53rf3n3y4rshfwar-parser-combinators-1.3.0-doc/share/doc/parser-combinators-1.3.0/html/src"><span class="hs-identifier hs-var">choice</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+forall byte addr.
+(Eq byte, Eq addr, Num byte, Num addr) =&gt;
+Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#Inc"><span class="hs-identifier hs-var">Inc</span></a></span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">43</span></span><span> </span><span class="hs-comment">-- +</span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+forall byte addr.
+(Eq byte, Eq addr, Num byte, Num addr) =&gt;
+Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#Dec"><span class="hs-identifier hs-var">Dec</span></a></span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">45</span></span><span> </span><span class="hs-comment">-- -</span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+forall addr byte. (Eq addr, Num addr) =&gt; Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#Left_"><span class="hs-identifier hs-var">Left_</span></a></span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">60</span></span><span> </span><span class="hs-comment">-- &lt;</span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+forall addr byte. (Eq addr, Num addr) =&gt; Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#Right_"><span class="hs-identifier hs-var">Right_</span></a></span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">62</span></span><span> </span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+forall addr byte. (Eq addr, Num addr) =&gt; Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#In"><span class="hs-identifier hs-var">In</span></a></span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">44</span></span><span> </span><span class="hs-comment">-- ,</span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+forall addr byte. (Eq addr, Num addr) =&gt; Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#Out"><span class="hs-identifier hs-var">Out</span></a></span><span> </span><span class="annot"><span class="annottext">Brainfuck byte addr
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">46</span></span><span> </span><span class="hs-comment">-- .</span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Brainfuck byte addr] -&gt; Brainfuck byte addr
+forall byte addr. [Brainfuck byte addr] -&gt; Brainfuck byte addr
+</span><a href="Brainfuck.Syntax.html#Loop"><span class="hs-identifier hs-var">Loop</span></a></span><span> </span><span class="annot"><span class="annottext">([Brainfuck byte addr] -&gt; Brainfuck byte addr)
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity [Brainfuck byte addr]
+-&gt; Parser (Brainfuck byte addr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-78"></span><span>        </span><span id="local-6989586621679122850"><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122850"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity SourcePos
+forall s e (m :: * -&gt; *).
+(TraversableStream s, MonadParsec e s m) =&gt;
+m SourcePos
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">getSourcePos</span></a></span><span>
+</span><span id="line-79"></span><span>        </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">91</span></span><span> </span><span class="hs-comment">-- [</span><span>
+</span><span id="line-80"></span><span>        </span><span id="local-6989586621679122849"><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679122849"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser (Brainfuck byte addr)
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity [Brainfuck byte addr]
+forall (m :: * -&gt; *) a. MonadPlus m =&gt; m a -&gt; m [a]
+</span><a href="../file:///nix/store/b6vjmp2vmd13wznv53rf3n3y4rshfwar-parser-combinators-1.3.0-doc/share/doc/parser-combinators-1.3.0/html/src"><span class="hs-identifier hs-var">many</span></a></span><span> </span><span class="annot"><span class="annottext">Parser (Brainfuck byte addr)
+forall byte addr.
+(Eq byte, Eq addr, Num byte, Num addr) =&gt;
+Parser (Brainfuck byte addr)
+</span><a href="Brainfuck.Parser.html#statement"><span class="hs-identifier hs-var">statement</span></a></span><span>
+</span><span id="line-81"></span><span>        </span><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679122849"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">[Brainfuck byte addr]
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity [Brainfuck byte addr]
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;$</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var">sym</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">93</span></span><span> </span><span class="hs-comment">-- ]</span><span>
+</span><span id="line-82"></span><span>          </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity [Brainfuck byte addr]
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity [Brainfuck byte addr]
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity [Brainfuck byte addr]
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;|&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">MismatchedBracket
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity [Brainfuck byte addr]
+forall e s (m :: * -&gt; *) a. MonadParsec e s m =&gt; e -&gt; m a
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">customFailure</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SourcePos -&gt; MismatchedBracket
+</span><a href="Brainfuck.Parser.html#UnmatchedOpen"><span class="hs-identifier hs-var">UnmatchedOpen</span></a></span><span> </span><span class="annot"><span class="annottext">SourcePos
+</span><a href="#local-6989586621679122850"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><a href="Brainfuck.Parser.html#commentByte"><span class="hs-identifier hs-type">commentByte</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Word8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Bool</span></a></span><span>
+</span><span id="line-86"></span><span id="commentByte"><span class="annot"><span class="annottext">commentByte :: Word8 -&gt; Bool
+</span><a href="Brainfuck.Parser.html#commentByte"><span class="hs-identifier hs-var hs-var">commentByte</span></a></span></span><span> </span><span id="local-6989586621679122847"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">43</span></span><span> </span><span class="hs-comment">-- +</span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">45</span></span><span> </span><span class="hs-comment">-- -</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">60</span></span><span> </span><span class="hs-comment">-- &lt;</span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">62</span></span><span> </span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">44</span></span><span> </span><span class="hs-comment">-- ,</span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">46</span></span><span> </span><span class="hs-comment">-- .</span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">91</span></span><span> </span><span class="hs-comment">-- [</span><span>
+</span><span id="line-94"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122847"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Word8 -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">93</span></span><span> </span><span class="hs-comment">-- ]</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Brainfuck.Parser.html#comment"><span class="hs-identifier hs-type">comment</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Brainfuck.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/bytestring-0.10.12.0/src"><span class="hs-identifier hs-type">ByteString</span></a></span><span>
+</span><span id="line-97"></span><span id="comment"><span class="annot"><span class="annottext">comment :: Parser ByteString
+</span><a href="Brainfuck.Parser.html#comment"><span class="hs-identifier hs-var hs-var">comment</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe String
+-&gt; (Token ByteString -&gt; Bool)
+-&gt; ParsecT
+     MismatchedBracket ByteString Identity (Tokens ByteString)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Maybe String -&gt; (Token s -&gt; Bool) -&gt; m (Tokens s)
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">takeWhileP</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe String
+forall a. Maybe a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">Nothing</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Bool
+Token ByteString -&gt; Bool
+</span><a href="Brainfuck.Parser.html#commentByte"><span class="hs-identifier hs-var">commentByte</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="annot"><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-type">sym</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Word8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Brainfuck.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Word8</span></a></span><span>
+</span><span id="line-100"></span><span id="sym"><span class="annot"><span class="annottext">sym :: Word8 -&gt; ParsecT MismatchedBracket ByteString Identity Word8
+</span><a href="Brainfuck.Parser.html#sym"><span class="hs-identifier hs-var hs-var">sym</span></a></span></span><span> </span><span id="local-6989586621679122843"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679122843"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Token ByteString
+-&gt; ParsecT MismatchedBracket ByteString Identity (Token ByteString)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Word8) =&gt;
+Token s -&gt; m (Token s)
+</span><a href="../file:///nix/store/yq660qs7947nyzd62d9xwjsj9s8pqszm-megaparsec-9.2.0-doc/share/doc/megaparsec-9.2.0/html/src"><span class="hs-identifier hs-var">char</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+Token ByteString
+</span><a href="#local-6989586621679122843"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT MismatchedBracket ByteString Identity Word8
+-&gt; Parser ByteString
+-&gt; ParsecT MismatchedBracket ByteString Identity Word8
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">&lt;*</span></a></span><span> </span><span class="annot"><span class="annottext">Parser ByteString
+</span><a href="Brainfuck.Parser.html#comment"><span class="hs-identifier hs-var">comment</span></a></span><span>
+</span><span id="line-101"></span></pre></body></html>

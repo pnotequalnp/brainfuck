@@ -1,0 +1,314 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE StrictData #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">{- |
+ Module      : Brainfuck.Interpreter
+ Description : Brainfuck Interpreter
+ Copyright   : Kevin Mullins 2022
+ License     : ISC
+ Maintainer  : kevin@pnotequalnp.com
+-}</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Brainfuck.Interpreter</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Brainfuck.Syntax.html"><span class="hs-identifier">Brainfuck.Syntax</span></a></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Control.Monad</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">when</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">Control.Monad.Primitive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">PrimMonad</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Data.Foldable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">sequenceA_</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">traverse_</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">Data.Primitive</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">modifyMutVar'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">newMutVar</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">Data.Primitive.MutVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">MutVar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier">readMutVar</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">Data.Vector.Unboxed.Mutable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">MVector</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">Unbox</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">modify</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">modifyM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">new</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">read</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier">write</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">Prelude</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier">read</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- | Interpret a brainfuck program</span><span>
+</span><span id="line-22"></span><span id="local-6989586621679123473"><span id="local-6989586621679123474"><span id="local-6989586621679123475"><span class="annot"><a href="Brainfuck.Interpreter.html#interpret"><span class="hs-identifier hs-type">interpret</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-type">PrimMonad</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123475"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-type">Unbox</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Integral</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123473"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-comment">-- | Input function</span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123475"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-comment">-- | Output function</span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123475"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-comment">-- | Memory size in bytes</span><span>
+</span><span id="line-29"></span><span>  </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Int</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-comment">-- | Initial pointer location</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><a href="#local-6989586621679123473"><span class="hs-identifier hs-type">addr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-comment">-- | Brainfuck program</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">[</span><span class="annot"><a href="Brainfuck.Syntax.html#Brainfuck"><span class="hs-identifier hs-type">Brainfuck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123473"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="#local-6989586621679123475"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-type">MVector</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-type">PrimState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123475"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123474"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679123473"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-35"></span><span id="interpret"><span class="annot"><span class="annottext">interpret :: (byte -&gt; m byte)
+-&gt; (byte -&gt; m ())
+-&gt; Int
+-&gt; addr
+-&gt; [Brainfuck byte addr]
+-&gt; m (MVector (PrimState m) byte, addr)
+</span><a href="Brainfuck.Interpreter.html#interpret"><span class="hs-identifier hs-var hs-var">interpret</span></a></span></span><span> </span><span id="local-6989586621679123471"><span class="annot"><span class="annottext">byte -&gt; m byte
+</span><a href="#local-6989586621679123471"><span class="hs-identifier hs-var">input</span></a></span></span><span> </span><span id="local-6989586621679123470"><span class="annot"><span class="annottext">byte -&gt; m ()
+</span><a href="#local-6989586621679123470"><span class="hs-identifier hs-var">output</span></a></span></span><span> </span><span id="local-6989586621679123469"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679123469"><span class="hs-identifier hs-var">memory</span></a></span></span><span> </span><span id="local-6989586621679123468"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123468"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span id="local-6989586621679123467"><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679123467"><span class="hs-identifier hs-var">program</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-36"></span><span>  </span><span id="local-6989586621679123466"><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123466"><span class="hs-identifier hs-var">buffer</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; m (MVector (PrimState m) byte)
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+Int -&gt; m (MVector (PrimState m) a)
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">new</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679123469"><span class="hs-identifier hs-var">memory</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621679123465"><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123465"><span class="hs-identifier hs-var">pointer</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">addr -&gt; m (MutVar (PrimState m) addr)
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+a -&gt; m (MutVar (PrimState m) a)
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">newMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123468"><span class="hs-identifier hs-var">ptr</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="annottext">(Brainfuck byte addr -&gt; m ()) -&gt; [Brainfuck byte addr] -&gt; m ()
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Foldable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f ()
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">traverse_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(byte -&gt; m byte)
+-&gt; (byte -&gt; m ())
+-&gt; MVector (PrimState m) byte
+-&gt; MutVar (PrimState m) addr
+-&gt; Brainfuck byte addr
+-&gt; m ()
+forall (m :: * -&gt; *) byte addr.
+(PrimMonad m, Num byte, Eq byte, Unbox byte, Integral addr) =&gt;
+(byte -&gt; m byte)
+-&gt; (byte -&gt; m ())
+-&gt; MVector (PrimState m) byte
+-&gt; MutVar (PrimState m) addr
+-&gt; Brainfuck byte addr
+-&gt; m ()
+</span><a href="Brainfuck.Interpreter.html#execute"><span class="hs-identifier hs-var">execute</span></a></span><span> </span><span class="annot"><span class="annottext">byte -&gt; m byte
+</span><a href="#local-6989586621679123471"><span class="hs-identifier hs-var">input</span></a></span><span> </span><span class="annot"><span class="annottext">byte -&gt; m ()
+</span><a href="#local-6989586621679123470"><span class="hs-identifier hs-var">output</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123466"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123465"><span class="hs-identifier hs-var">pointer</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Brainfuck byte addr]
+</span><a href="#local-6989586621679123467"><span class="hs-identifier hs-var">program</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621679123463"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123463"><span class="hs-identifier hs-var">ptr'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123465"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><span class="annottext">(MVector (PrimState m) byte, addr)
+-&gt; m (MVector (PrimState m) byte, addr)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123466"><span class="hs-identifier hs-var">buffer</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123463"><span class="hs-identifier hs-var">ptr'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- | Execute a single brainfuck instruction</span><span>
+</span><span id="line-43"></span><span id="local-6989586621679123515"><span id="local-6989586621679123516"><span id="local-6989586621679123517"><span class="annot"><a href="Brainfuck.Interpreter.html#execute"><span class="hs-identifier hs-type">execute</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-type">PrimMonad</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123517"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Num</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-type">Unbox</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-type">Integral</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123515"><span class="hs-identifier hs-type">addr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-comment">-- | Input function</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-comment">-- | Output function</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679123517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-comment">-- | Memory cells</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-type">MVector</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-type">PrimState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123517"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-comment">-- | Pointer</span><span>
+</span><span id="line-52"></span><span>  </span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-type">MutVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-type">PrimState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123517"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679123515"><span class="hs-identifier hs-type">addr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-comment">-- | Brainfuck instruction</span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#Brainfuck"><span class="hs-identifier hs-type">Brainfuck</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123516"><span class="hs-identifier hs-type">byte</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679123515"><span class="hs-identifier hs-type">addr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><a href="#local-6989586621679123517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-56"></span><span id="execute"><span class="annot"><span class="annottext">execute :: (byte -&gt; m byte)
+-&gt; (byte -&gt; m ())
+-&gt; MVector (PrimState m) byte
+-&gt; MutVar (PrimState m) addr
+-&gt; Brainfuck byte addr
+-&gt; m ()
+</span><a href="Brainfuck.Interpreter.html#execute"><span class="hs-identifier hs-var hs-var">execute</span></a></span></span><span> </span><span id="local-6989586621679123462"><span class="annot"><span class="annottext">byte -&gt; m byte
+</span><a href="#local-6989586621679123462"><span class="hs-identifier hs-var">input</span></a></span></span><span> </span><span id="local-6989586621679123461"><span class="annot"><span class="annottext">byte -&gt; m ()
+</span><a href="#local-6989586621679123461"><span class="hs-identifier hs-var">output</span></a></span></span><span> </span><span id="local-6989586621679123460"><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span></span><span> </span><span id="local-6989586621679123459"><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Base (Brainfuck byte addr) (m ()) -&gt; m ())
+-&gt; Brainfuck byte addr -&gt; m ()
+forall t a. Recursive t =&gt; (Base t a -&gt; a) -&gt; t -&gt; a
+</span><a href="../file:///nix/store/2gjm0r0drmv6xrni5rj4zvdir0xpwk73-recursion-schemes-5.2.2.2-doc/share/doc/recursion-schemes-5.2.2.2/html/src"><span class="hs-identifier hs-var">cata</span></a></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#AddF"><span class="hs-identifier hs-type">AddF</span></a></span><span> </span><span id="local-6989586621679123456"><span class="annot"><a href="#local-6989586621679123456"><span class="hs-identifier hs-var">amount</span></a></span></span><span> </span><span id="local-6989586621679123455"><span class="annot"><a href="#local-6989586621679123455"><span class="hs-identifier hs-var">offset</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-58"></span><span>    </span><span id="local-6989586621679123454"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123454"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; (byte -&gt; byte) -&gt; Int -&gt; m ()
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; (a -&gt; a) -&gt; Int -&gt; m ()
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">modify</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">byte -&gt; byte -&gt; byte
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123456"><span class="hs-identifier hs-var">amount</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123454"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123455"><span class="hs-identifier hs-var">offset</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#SetF"><span class="hs-identifier hs-type">SetF</span></a></span><span> </span><span id="local-6989586621679123451"><span class="annot"><a href="#local-6989586621679123451"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span id="local-6989586621679123450"><span class="annot"><a href="#local-6989586621679123450"><span class="hs-identifier hs-var">offset</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>    </span><span id="local-6989586621679123449"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123449"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; Int -&gt; byte -&gt; m ()
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; Int -&gt; a -&gt; m ()
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">write</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123449"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123450"><span class="hs-identifier hs-var">offset</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123451"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#MulF"><span class="hs-identifier hs-type">MulF</span></a></span><span> </span><span id="local-6989586621679123447"><span class="annot"><a href="#local-6989586621679123447"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span id="local-6989586621679123446"><span class="annot"><a href="#local-6989586621679123446"><span class="hs-identifier hs-var">cell</span></a></span></span><span> </span><span id="local-6989586621679123445"><span class="annot"><a href="#local-6989586621679123445"><span class="hs-identifier hs-var">offset</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>    </span><span id="local-6989586621679123444"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123444"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-65"></span><span>    </span><span id="local-6989586621679123443"><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123443"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; Int -&gt; m byte
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; Int -&gt; m a
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">read</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123444"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123445"><span class="hs-identifier hs-var">offset</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; (byte -&gt; byte) -&gt; Int -&gt; m ()
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; (a -&gt; a) -&gt; Int -&gt; m ()
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">modify</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">byte -&gt; byte -&gt; byte
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123443"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">byte -&gt; byte -&gt; byte
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">*</span></a></span><span> </span><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123447"><span class="hs-identifier hs-var">value</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123444"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123445"><span class="hs-identifier hs-var">offset</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123446"><span class="hs-identifier hs-var">cell</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#ShiftF"><span class="hs-identifier hs-type">ShiftF</span></a></span><span> </span><span id="local-6989586621679123440"><span class="annot"><a href="#local-6989586621679123440"><span class="hs-identifier hs-var">amount</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; (addr -&gt; addr) -&gt; m ()
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; (a -&gt; a) -&gt; m ()
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">modifyMutVar'</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123440"><span class="hs-identifier hs-var">amount</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#InputF"><span class="hs-identifier hs-type">InputF</span></a></span><span> </span><span id="local-6989586621679123438"><span class="annot"><a href="#local-6989586621679123438"><span class="hs-identifier hs-var">offset</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-70"></span><span>    </span><span id="local-6989586621679123437"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123437"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; (byte -&gt; m byte) -&gt; Int -&gt; m ()
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; (a -&gt; m a) -&gt; Int -&gt; m ()
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">modifyM</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="annot"><span class="annottext">byte -&gt; m byte
+</span><a href="#local-6989586621679123462"><span class="hs-identifier hs-var">input</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123437"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123438"><span class="hs-identifier hs-var">offset</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#OutputF"><span class="hs-identifier hs-type">OutputF</span></a></span><span> </span><span id="local-6989586621679123435"><span class="annot"><a href="#local-6989586621679123435"><span class="hs-identifier hs-var">offset</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-73"></span><span>    </span><span id="local-6989586621679123434"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123434"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621679123433"><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123433"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; Int -&gt; m byte
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; Int -&gt; m a
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">read</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123434"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">addr -&gt; addr -&gt; addr
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123435"><span class="hs-identifier hs-var">offset</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><span class="annottext">byte -&gt; m ()
+</span><a href="#local-6989586621679123461"><span class="hs-identifier hs-var">output</span></a></span><span> </span><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123433"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><a href="Brainfuck.Syntax.html#LoopF"><span class="hs-identifier hs-type">LoopF</span></a></span><span> </span><span id="local-6989586621679123431"><span class="annot"><a href="#local-6989586621679123431"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679123430"><span class="annot"><span class="annottext">body' :: m ()
+</span><a href="#local-6989586621679123430"><span class="hs-identifier hs-var hs-var">body'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[m ()] -&gt; m ()
+forall (t :: * -&gt; *) (f :: * -&gt; *) a.
+(Foldable t, Applicative f) =&gt;
+t (f a) -&gt; f ()
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">sequenceA_</span></a></span><span> </span><span class="annot"><span class="annottext">[m ()]
+</span><a href="#local-6989586621679123431"><span class="hs-identifier hs-var">body</span></a></span><span>
+</span><span id="line-78"></span><span>        </span><span id="local-6989586621679123429"><span class="annot"><span class="annottext">loop :: m ()
+</span><a href="#local-6989586621679123429"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>          </span><span id="local-6989586621679123428"><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123428"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr -&gt; m addr
+forall (m :: * -&gt; *) a.
+PrimMonad m =&gt;
+MutVar (PrimState m) a -&gt; m a
+</span><a href="../file:///nix/store/kidr8kq39z2ng3l210b2c38gcbn0zprw-primitive-0.7.3.0-doc/share/doc/primitive-0.7.3.0/html/src"><span class="hs-identifier hs-var">readMutVar</span></a></span><span> </span><span class="annot"><span class="annottext">MutVar (PrimState m) addr
+</span><a href="#local-6989586621679123459"><span class="hs-identifier hs-var">pointer</span></a></span><span>
+</span><span id="line-80"></span><span>          </span><span id="local-6989586621679123427"><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123427"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte -&gt; Int -&gt; m byte
+forall (m :: * -&gt; *) a.
+(PrimMonad m, Unbox a) =&gt;
+MVector (PrimState m) a -&gt; Int -&gt; m a
+</span><a href="../file:///nix/store/zr8i27spzpipkmrkj8ga9n4v8563lkk1-vector-0.12.3.1-doc/share/doc/vector-0.12.3.1/html/src"><span class="hs-identifier hs-var">read</span></a></span><span> </span><span class="annot"><span class="annottext">MVector (PrimState m) byte
+</span><a href="#local-6989586621679123460"><span class="hs-identifier hs-var">buffer</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">addr -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">addr
+</span><a href="#local-6989586621679123428"><span class="hs-identifier hs-var">ptr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>          </span><span class="annot"><span class="annottext">Bool -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">when</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">byte
+</span><a href="#local-6989586621679123427"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">byte -&gt; byte -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/ghc-prim-0.6.1/src"><span class="hs-operator hs-var">/=</span></a></span><span> </span><span class="annot"><span class="annottext">byte
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-82"></span><span>            </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679123430"><span class="hs-identifier hs-var">body'</span></a></span><span>
+</span><span id="line-83"></span><span>            </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679123429"><span class="hs-identifier hs-var">loop</span></a></span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679123429"><span class="hs-identifier hs-var">loop</span></a></span><span>
+</span><span id="line-85"></span><span>  </span><span class="annot"><span class="annottext">Base (Brainfuck byte addr) (m ())
+</span><a href="Brainfuck.Syntax.html#NopF"><span class="hs-identifier hs-var">NopF</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; m ()
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="../file:///nix/store/v7szadshw96crn5859pd08h4qz152gs6-ghc-8.10.7-doc/share/doc/ghc/html/libraries/base-4.14.3.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span></pre></body></html>
